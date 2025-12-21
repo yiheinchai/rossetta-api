@@ -1,95 +1,58 @@
 /**
- * Rossetta API Client
- * Handles all obfuscated API calls to the backend
+ * Rossetta API Client for Todo App
+ * This file imports and uses the @rossetta-api/client package
  */
 
-const API_BASE_URL = 'http://localhost:3001';
+// In production, users would do: import RossettaClient from '@rossetta-api/client';
+// For this demo, we import from the local package
+import { RossettaClient } from '../packages/rossetta-client/index.js';
 
-/**
- * Make an obfuscated API request
- */
-async function makeRequest(endpointName, method = 'GET', data = null) {
-  try {
-    // Get obfuscated endpoint
-    const endpoint = await obfuscateEndpoint(endpointName);
-    const url = API_BASE_URL + endpoint;
-    
-    const options = {
-      method,
-      headers: {
-        'Content-Type': 'text/plain'
-      }
-    };
-    
-    // Encrypt request body if provided
-    if (data && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
-      const timestamp = Date.now();
-      const signature = await createSignature(data, timestamp);
-      
-      const payload = {
-        data,
-        timestamp,
-        signature
-      };
-      
-      const encryptedPayload = await encrypt(payload);
-      options.body = encryptedPayload;
-    }
-    
-    // Make request
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    // Decrypt response
-    const encryptedResponse = await response.text();
-    const decryptedResponse = await decrypt(encryptedResponse);
-    
-    return decryptedResponse.data;
-  } catch (error) {
-    console.error('API request failed:', error);
-    throw error;
-  }
-}
+// Create client instance
+const client = new RossettaClient('http://localhost:3001');
 
-/**
- * API methods for todo operations
- */
-const RossettaAPI = {
+// Define endpoint names (must match backend)
+const ENDPOINTS = {
+  LIST_TODOS: 'list-todos',
+  CREATE_TODO: 'create-todo',
+  UPDATE_TODO: 'update-todo',
+  DELETE_TODO: 'delete-todo',
+  TOGGLE_TODO: 'toggle-todo'
+};
+
+// API methods for todo operations
+export const RossettaAPI = {
   /**
    * Get all todos
    */
   async listTodos() {
-    return makeRequest(ENDPOINTS.LIST_TODOS, 'GET');
+    return client.request(ENDPOINTS.LIST_TODOS, 'GET');
   },
   
   /**
    * Create a new todo
    */
   async createTodo(text) {
-    return makeRequest(ENDPOINTS.CREATE_TODO, 'POST', { text });
+    return client.request(ENDPOINTS.CREATE_TODO, 'POST', { text });
   },
   
   /**
    * Update a todo
    */
   async updateTodo(id, text) {
-    return makeRequest(ENDPOINTS.UPDATE_TODO, 'PUT', { id, text });
+    return client.request(ENDPOINTS.UPDATE_TODO, 'PUT', { id, text });
   },
   
   /**
    * Toggle todo completion status
    */
   async toggleTodo(id) {
-    return makeRequest(ENDPOINTS.TOGGLE_TODO, 'POST', { id });
+    return client.request(ENDPOINTS.TOGGLE_TODO, 'POST', { id });
   },
   
   /**
    * Delete a todo
    */
   async deleteTodo(id) {
-    return makeRequest(ENDPOINTS.DELETE_TODO, 'DELETE', { id });
+    return client.request(ENDPOINTS.DELETE_TODO, 'DELETE', { id });
   }
 };

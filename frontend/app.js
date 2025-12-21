@@ -3,6 +3,8 @@
  * Frontend logic for managing todos with obfuscated API calls
  */
 
+import { RossettaAPI } from './api-client.js';
+
 let todos = [];
 let editingTodoId = null;
 
