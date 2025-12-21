@@ -1,6 +1,6 @@
 {
   "name": "@rossetta-api/client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Zero-config obfuscated API client for browser and Node.js - protect your APIs from reverse engineering",
   "main": "index.js",
   "types": "index.d.ts",

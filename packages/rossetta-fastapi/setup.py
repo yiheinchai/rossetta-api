@@ -7,7 +7,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="rossetta-fastapi",
-    version="0.1.0",
+    version="0.1.2",
     description="Zero-config network request obfuscation middleware for FastAPI - protect your APIs from reverse engineering",
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -132,11 +132,17 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         return json.loads(json_string)
 
     def create_signature(self, data: dict, timestamp: int, session_key: str) -> str:
-        """Create HMAC signature"""
-        payload = json.dumps(data) + str(timestamp)
+        # 1. separators=(',', ':') removes the default spaces
+        # 2. ensure_ascii=False prevents escaping (e.g., keeps 'ñ' instead of '\u00f1')
+        # 3. sort_keys=False is default, but ensure your input dictionary order matches JS
+        payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False) + str(
+            timestamp
+        )
+
         signature = hmac.new(
-            session_key.encode(), payload.encode(), hashlib.sha256
+            session_key.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
         ).hexdigest()
+
         return signature
 
     def verify_signature(
