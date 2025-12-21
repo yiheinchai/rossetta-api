@@ -10,22 +10,23 @@ import os
 # Add parent directory to path to import rossetta_fastapi
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rossetta_fastapi import RossettaMiddleware, encrypt_response, protected_route
+from rossetta_fastapi import setup_rossetta, encrypt_response, protected_route
 
 # Create FastAPI app
 app = FastAPI()
 
-# Add session middleware (required for Rossetta)
+# Setup Rossetta - this adds middleware AND creates /api/init-session endpoint
+setup_rossetta(
+    app,
+    secret=os.environ.get('ROSSETTA_SECRET_KEY', 'dev-rossetta-secret'),
+    timestamp_window=300000  # 5 minutes
+)
+
+# Add session middleware after Rossetta
+# Note: In FastAPI/Starlette, middlewares are executed in reverse order of registration
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get('SESSION_SECRET_KEY', 'dev-secret-change-in-production')
-)
-
-# Add Rossetta middleware - this automatically creates /api/init-session endpoint
-app.add_middleware(
-    RossettaMiddleware,
-    secret=os.environ.get('ROSSETTA_SECRET_KEY', 'dev-rossetta-secret'),
-    timestamp_window=300000  # 5 minutes
 )
 
 # In-memory todo storage (for demo purposes only)

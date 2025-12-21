@@ -16,7 +16,7 @@ This example demonstrates:
 
 ```bash
 # Install dependencies
-pip install fastapi uvicorn starlette cryptography
+pip install fastapi uvicorn starlette cryptography itsdangerous
 
 # Or install from the package
 cd ..

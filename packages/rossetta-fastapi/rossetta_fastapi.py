@@ -3,10 +3,12 @@
 Zero-config network request obfuscation middleware for FastAPI
 
 Usage:
-    from rossetta_fastapi import RossettaMiddleware
+    from rossetta_fastapi import setup_rossetta
+    from starlette.middleware.sessions import SessionMiddleware
     
     app = FastAPI()
-    app.add_middleware(RossettaMiddleware)
+    setup_rossetta(app)
+    app.add_middleware(SessionMiddleware, secret_key="your-secret")
 """
 
 from fastapi import FastAPI, Request, Response
@@ -44,26 +46,6 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.secret = secret
         self.timestamp_window = timestamp_window
-        self._app_instance = app
-        self._register_init_endpoint()
-    
-    def _register_init_endpoint(self):
-        """Register the session initialization endpoint"""
-        from fastapi import FastAPI
-        
-        # Check if app is a FastAPI instance
-        if isinstance(self._app_instance, FastAPI):
-            @self._app_instance.post("/api/init-session")
-            async def init_session(request: Request):
-                """Initialize session and return session keys"""
-                if 'rossetta_key' not in request.session:
-                    request.session['rossetta_key'] = secrets.token_hex(32)
-                    request.session['endpoint_salt'] = secrets.token_hex(16)
-                
-                return {
-                    'sessionKey': request.session['rossetta_key'],
-                    'endpointSalt': request.session['endpoint_salt']
-                }
     
     def obfuscate_endpoint(self, endpoint: str, salt: str) -> str:
         """Generate obfuscated endpoint path"""
@@ -254,3 +236,47 @@ def protected_route(f: Callable) -> Callable:
         return Response(content=encrypted, media_type='text/plain')
     
     return decorated_function
+
+
+def setup_rossetta(app, secret: str = DEFAULT_SECRET, timestamp_window: int = TIMESTAMP_WINDOW):
+    """
+    Setup Rossetta middleware and automatically register the /api/init-session endpoint.
+    
+    Usage:
+        from fastapi import FastAPI
+        from starlette.middleware.sessions import SessionMiddleware
+        from rossetta_fastapi import setup_rossetta
+        
+        app = FastAPI()
+        
+        # Setup Rossetta (this adds the middleware and creates /api/init-session)
+        setup_rossetta(app)
+        
+        # Add session middleware after
+        app.add_middleware(SessionMiddleware, secret_key="your-secret")
+    
+    Args:
+        app: FastAPI application instance
+        secret: Secret key for encryption (defaults to env var or auto-generated)
+        timestamp_window: Request validity window in milliseconds (default: 300000)
+    """
+    from fastapi import FastAPI
+    
+    if not isinstance(app, FastAPI):
+        raise TypeError("app must be a FastAPI instance")
+    
+    # Register the /api/init-session endpoint
+    @app.post("/api/init-session")
+    async def init_session(request: Request):
+        """Initialize session and return session keys"""
+        if 'rossetta_key' not in request.session:
+            request.session['rossetta_key'] = secrets.token_hex(32)
+            request.session['endpoint_salt'] = secrets.token_hex(16)
+        
+        return {
+            'sessionKey': request.session['rossetta_key'],
+            'endpointSalt': request.session['endpoint_salt']
+        }
+    
+    # Add the middleware
+    app.add_middleware(RossettaMiddleware, secret=secret, timestamp_window=timestamp_window)

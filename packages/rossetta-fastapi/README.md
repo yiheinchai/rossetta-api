@@ -20,12 +20,16 @@ pip install rossetta-fastapi
 
 ```python
 from fastapi import FastAPI
-from rossetta_fastapi import RossettaMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+from rossetta_fastapi import setup_rossetta
 
 app = FastAPI()
 
-# Add Rossetta middleware
-app.add_middleware(RossettaMiddleware)
+# Setup Rossetta - this adds middleware AND creates /api/init-session endpoint
+setup_rossetta(app)
+
+# Add session middleware (required)
+app.add_middleware(SessionMiddleware, secret_key="your-secret-key-here")
 
 # Define your routes normally
 @app.get("/api/users")
@@ -37,7 +41,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-That's it! All API endpoints are now automatically obfuscated and encrypted.
+That's it! The `/api/init-session` endpoint is automatically created, and all API endpoints are now ready for obfuscation and encryption.
 
 ## Usage
 
@@ -46,35 +50,50 @@ That's it! All API endpoints are now automatically obfuscated and encrypted.
 ```python
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
-from rossetta_fastapi import RossettaMiddleware
+from rossetta_fastapi import setup_rossetta
 
 app = FastAPI()
+
+# Setup Rossetta - automatically creates /api/init-session and adds middleware
+setup_rossetta(
+    app,
+    secret="your-rossetta-secret",  # Optional
+    timestamp_window=300000  # 5 minutes (default)
+)
 
 # Add session middleware (required)
 app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key-here"
 )
-
-# Add Rossetta middleware
-app.add_middleware(
-    RossettaMiddleware,
-    secret="your-rossetta-secret",  # Optional
-    timestamp_window=300000  # 5 minutes (default)
-)
 ```
 
 ### Encrypting Responses
 
+Use the `@protected_route` decorator for automatic response encryption:
+
 ```python
 from fastapi import Request
+from rossetta_fastapi import protected_route
+
+@app.get("/api/data")
+@protected_route
+async def get_data(request: Request):
+    return {"message": "Hello, World!"}  # Automatically encrypted
+```
+
+Or manually encrypt responses:
+
+```python
+from fastapi import Request, Response
 from rossetta_fastapi import encrypt_response
 
 @app.get("/api/data")
 async def get_data(request: Request):
     data = {"message": "Hello, World!"}
     session_key = request.state.rossetta['session_key']
-    return encrypt_response(data, session_key)
+    encrypted = encrypt_response(data, session_key)
+    return Response(content=encrypted, media_type='text/plain')
 ```
 
 ### Accessing Request Data
@@ -88,19 +107,11 @@ async def create_item(request: Request):
     
     result = {"id": 1, "name": name}
     session_key = request.state.rossetta['session_key']
-    return encrypt_response(result, session_key)
+    encrypted = encrypt_response(result, session_key)
+    return Response(content=encrypted, media_type='text/plain')
 ```
 
-### Session Initialization Endpoint
-
-```python
-@app.post("/api/init-session")
-async def init_session(request: Request):
-    return {
-        "sessionKey": request.session['rossetta_key'],
-        "endpointSalt": request.session['endpoint_salt']
-    }
-```
+**Note**: The `/api/init-session` endpoint is now automatically created by `setup_rossetta()`. You don't need to define it yourself!
 
 ## How It Works
 
@@ -161,9 +172,22 @@ ROSSETTA_SECRET_KEY=your-secret-key-here  # Optional
 
 ## API Reference
 
+### `setup_rossetta(app, secret=None, timestamp_window=300000)`
+
+Main setup function that configures Rossetta for your FastAPI app.
+
+**Parameters:**
+- `app` (FastAPI): Your FastAPI application instance
+- `secret` (str): Secret key for encryption (auto-generated if not provided)
+- `timestamp_window` (int): Request validity window in milliseconds (default: 300000)
+
+**What it does:**
+- Creates the `/api/init-session` endpoint automatically
+- Adds the `RossettaMiddleware` to your app
+
 ### `RossettaMiddleware`
 
-Main middleware class.
+The underlying middleware class (automatically added by `setup_rossetta`).
 
 **Parameters:**
 - `secret` (str): Secret key for encryption (auto-generated if not provided)
@@ -181,6 +205,15 @@ After middleware processing:
 
 ### Helper Functions
 
+#### `setup_rossetta(app, secret, timestamp_window)`
+
+Sets up Rossetta middleware and creates `/api/init-session` endpoint.
+
+**Parameters:**
+- `app` (FastAPI): FastAPI application instance
+- `secret` (str): Secret key for encryption
+- `timestamp_window` (int): Request validity window in milliseconds
+
 #### `encrypt_response(data, session_key)`
 
 Encrypts response data.
@@ -191,35 +224,43 @@ Encrypts response data.
 
 **Returns:** Encrypted string
 
+#### `@protected_route`
+
+Decorator that automatically encrypts route responses.
+
+**Usage:**
+```python
+@app.get('/api/data')
+@protected_route
+async def get_data(request: Request):
+    return {'message': 'Hello, World!'}
+```
+
 ## Complete Example
 
 ```python
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from starlette.middleware.sessions import SessionMiddleware
-from rossetta_fastapi import RossettaMiddleware, encrypt_response
+from rossetta_fastapi import setup_rossetta, encrypt_response, protected_route
 
 app = FastAPI()
 
-# Add middlewares
+# Setup Rossetta - this creates /api/init-session automatically
+setup_rossetta(app)
+
+# Add session middleware
 app.add_middleware(SessionMiddleware, secret_key="super-secret")
-app.add_middleware(RossettaMiddleware)
 
-# Session init
-@app.post("/api/init-session")
-async def init_session(request: Request):
-    return {
-        "sessionKey": request.session['rossetta_key'],
-        "endpointSalt": request.session['endpoint_salt']
-    }
-
-# Protected endpoints
+# Using @protected_route decorator (recommended)
 @app.get("/api/todos")
+@protected_route
 async def list_todos(request: Request):
     todos = [
         {"id": 1, "text": "Learn Rossetta API", "completed": False}
     ]
-    return encrypt_response(todos, request.state.rossetta['session_key'])
+    return todos  # Automatically encrypted
 
+# Manual encryption
 @app.post("/api/todos")
 async def create_todo(request: Request):
     data = request.state.decrypted_data
@@ -228,7 +269,9 @@ async def create_todo(request: Request):
         "text": data['text'],
         "completed": False
     }
-    return encrypt_response(todo, request.state.rossetta['session_key'])
+    session_key = request.state.rossetta['session_key']
+    encrypted = encrypt_response(todo, session_key)
+    return Response(content=encrypted, media_type='text/plain')
 
 if __name__ == "__main__":
     import uvicorn
