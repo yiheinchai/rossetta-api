@@ -25,6 +25,7 @@ setup(
         "cryptography>=41.0.0",
         "python-multipart>=0.0.6",
         "starlette>=0.27.0",
+        "itsdangerous>=2.1.0",
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
