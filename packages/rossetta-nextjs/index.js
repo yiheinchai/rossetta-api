@@ -14,7 +14,6 @@
  */
 
 import crypto from 'crypto';
-import { cookies } from 'next/headers';
 
 const ALGORITHM = 'aes-256-cbc';
 const DEFAULT_SECRET = process.env.ROSSETTA_SECRET_KEY || crypto.randomBytes(32).toString('hex');
@@ -146,6 +145,8 @@ async function getOrCreateSession(cookieStore) {
  */
 export function createSessionInitHandler() {
   return async function POST(request) {
+    // Import cookies dynamically to avoid module-level issues
+    const { cookies } = await import('next/headers');
     const cookieStore = cookies();
     const session = await getOrCreateSession(cookieStore);
     
@@ -168,6 +169,8 @@ export function createSessionInitHandler() {
  */
 export function createRossettaHandler(handler, options = {}) {
   return async function(request, context) {
+    // Import cookies dynamically to avoid module-level issues
+    const { cookies } = await import('next/headers');
     const cookieStore = cookies();
     const session = await getOrCreateSession(cookieStore);
     

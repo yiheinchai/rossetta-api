@@ -45,8 +45,11 @@ def decrypt(encrypted_data, session_key):
     
     decrypted = decryptor.update(encrypted) + decryptor.finalize()
     
-    padding_length = decrypted[-1]
-    decrypted = decrypted[:-padding_length]
+    # Remove padding - the last byte indicates padding length
+    padding_length = decrypted[-1] if len(decrypted) > 0 else 0
+    # Validate padding length
+    if padding_length > 0 and padding_length <= 16:
+        decrypted = decrypted[:-padding_length]
     
     json_string = decrypted.decode()
     return json.loads(json_string)

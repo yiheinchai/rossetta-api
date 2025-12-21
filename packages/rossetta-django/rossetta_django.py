@@ -28,6 +28,11 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 import os
 
+try:
+    from django.conf import settings
+except ImportError:
+    settings = None
+
 ALGORITHM = 'AES-CBC'
 DEFAULT_SECRET = os.getenv('ROSSETTA_SECRET_KEY', secrets.token_hex(32))
 TIMESTAMP_WINDOW = int(os.getenv('ROSSETTA_TIMESTAMP_WINDOW', 5 * 60 * 1000))  # 5 minutes
@@ -41,8 +46,8 @@ class RossettaMiddleware:
     
     def __init__(self, get_response):
         self.get_response = get_response
-        self.secret = getattr(settings, 'ROSSETTA_SECRET_KEY', DEFAULT_SECRET) if 'settings' in dir() else DEFAULT_SECRET
-        self.timestamp_window = getattr(settings, 'ROSSETTA_TIMESTAMP_WINDOW', TIMESTAMP_WINDOW) if 'settings' in dir() else TIMESTAMP_WINDOW
+        self.secret = getattr(settings, 'ROSSETTA_SECRET_KEY', DEFAULT_SECRET) if settings else DEFAULT_SECRET
+        self.timestamp_window = getattr(settings, 'ROSSETTA_TIMESTAMP_WINDOW', TIMESTAMP_WINDOW) if settings else TIMESTAMP_WINDOW
     
     def __call__(self, request):
         # Initialize or retrieve session

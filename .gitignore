@@ -9,3 +9,7 @@ coverage/
 .idea/
 *.swp
 *.swo
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
