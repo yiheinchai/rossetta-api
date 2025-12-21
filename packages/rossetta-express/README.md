@@ -105,6 +105,46 @@ app.use((req, res, next) => {
 - **Request Integrity**: HMAC signatures prevent tampering
 - **Endpoint Obfuscation**: API structure hidden from inspection
 
+## ⚠️ Production Deployment
+
+**IMPORTANT**: This package provides obfuscation and encryption at the application layer. For production use, you **MUST** also implement:
+
+### Required for Production:
+1. **HTTPS/TLS**: Always use HTTPS in production
+   - Obfuscation is NOT a replacement for TLS
+   - Use valid SSL/TLS certificates
+   - Configure HSTS headers
+
+2. **Environment Variables**: Never hardcode secrets
+   ```bash
+   ROSSETTA_SECRET_KEY=your-secure-random-key-here
+   NODE_ENV=production
+   ```
+
+3. **Rate Limiting**: Add rate limiting to prevent abuse
+   ```javascript
+   import rateLimit from 'express-rate-limit';
+   
+   app.use(rateLimit({
+     windowMs: 15 * 60 * 1000,
+     max: 100
+   }));
+   ```
+
+4. **Authentication & Authorization**: Add proper auth layer
+   - This package only handles obfuscation
+   - Implement JWT, OAuth, or session-based auth
+
+5. **Database Security**: Use parameterized queries
+6. **Input Validation**: Validate all user inputs
+7. **CORS Configuration**: Restrict allowed origins
+8. **Logging & Monitoring**: Track security events
+
+### Recommended Security Stack:
+```
+[Client] → HTTPS/TLS → [Rate Limiter] → [Auth Middleware] → [Rossetta Middleware] → [Your API]
+```
+
 ## Environment Variables
 
 ```bash

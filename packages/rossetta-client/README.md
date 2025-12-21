@@ -165,6 +165,18 @@ try {
 - **Request Integrity**: HMAC signatures prevent tampering
 - **Replay Protection**: Timestamp validation on server
 
+## ⚠️ Security Considerations
+
+This client provides obfuscation and encryption, but you should also:
+
+1. **Always use HTTPS/TLS** in production
+2. **Implement proper authentication** (JWT, OAuth, etc.)
+3. **Validate server certificates**
+4. **Handle credentials securely**
+5. **Use environment variables** for API URLs
+
+This package is designed to work **alongside** standard security practices, not replace them.
+
 ## API Reference
 
 ### `new RossettaClient(baseURL, options)`

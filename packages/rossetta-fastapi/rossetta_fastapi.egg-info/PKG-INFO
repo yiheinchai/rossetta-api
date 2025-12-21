@@ -1,3 +1,32 @@
+Metadata-Version: 2.1
+Name: rossetta-fastapi
+Version: 0.1.0
+Summary: Zero-config network request obfuscation middleware for FastAPI - protect your APIs from reverse engineering
+Home-page: https://github.com/yiheinchai/rossetta-api
+Author: Rossetta API Team
+Author-email: 
+License: MIT
+Project-URL: Bug Tracker, https://github.com/yiheinchai/rossetta-api/issues
+Project-URL: Documentation, https://github.com/yiheinchai/rossetta-api#readme
+Project-URL: Source Code, https://github.com/yiheinchai/rossetta-api/tree/main/packages/rossetta-fastapi
+Keywords: fastapi middleware encryption obfuscation security rossetta api-security aes-256 hmac endpoint-obfuscation
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Framework :: FastAPI
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Topic :: Security :: Cryptography
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
 # rossetta-fastapi
 
 Zero-config network request obfuscation middleware for FastAPI
