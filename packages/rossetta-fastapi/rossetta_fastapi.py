@@ -9,7 +9,7 @@ Usage:
     app.add_middleware(RossettaMiddleware)
 """
 
-from fastapi import Request, Response
+from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import hashlib
@@ -20,8 +20,14 @@ import time
 from base64 import b64encode, b64decode
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
-from typing import Optional
+from typing import Optional, Callable
+from functools import wraps
 import os
+import logging
+import asyncio
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 ALGORITHM = 'AES-CBC'
 DEFAULT_SECRET = os.getenv('ROSSETTA_SECRET_KEY', secrets.token_hex(32))
@@ -38,6 +44,26 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.secret = secret
         self.timestamp_window = timestamp_window
+        self._app_instance = app
+        self._register_init_endpoint()
+    
+    def _register_init_endpoint(self):
+        """Register the session initialization endpoint"""
+        from fastapi import FastAPI
+        
+        # Check if app is a FastAPI instance
+        if isinstance(self._app_instance, FastAPI):
+            @self._app_instance.post("/api/init-session")
+            async def init_session(request: Request):
+                """Initialize session and return session keys"""
+                if 'rossetta_key' not in request.session:
+                    request.session['rossetta_key'] = secrets.token_hex(32)
+                    request.session['endpoint_salt'] = secrets.token_hex(16)
+                
+                return {
+                    'sessionKey': request.session['rossetta_key'],
+                    'endpointSalt': request.session['endpoint_salt']
+                }
     
     def obfuscate_endpoint(self, endpoint: str, salt: str) -> str:
         """Generate obfuscated endpoint path"""
@@ -67,7 +93,12 @@ class RossettaMiddleware(BaseHTTPMiddleware):
     
     def decrypt(self, encrypted_data: str, session_key: str) -> dict:
         """Decrypt received data"""
-        iv_b64, encrypted_b64 = encrypted_data.split(':')
+        # Split on first colon only to handle data that may contain colons
+        parts = encrypted_data.split(':', 1)
+        if len(parts) != 2:
+            raise ValueError("Invalid encrypted data format")
+        
+        iv_b64, encrypted_b64 = parts
         iv = b64decode(iv_b64)
         encrypted = b64decode(encrypted_b64)
         
@@ -78,8 +109,25 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         
         decrypted = decryptor.update(encrypted) + decryptor.finalize()
         
-        # Remove padding
+        # Validate and remove padding
+        if len(decrypted) == 0:
+            raise ValueError("Decrypted data is empty")
+        
         padding_length = decrypted[-1]
+        
+        # Validate padding length (must be 1-16 for AES block size)
+        if padding_length < 1 or padding_length > 16:
+            raise ValueError("Invalid padding length")
+        
+        # Validate padding bytes
+        if len(decrypted) < padding_length:
+            raise ValueError("Invalid padding")
+        
+        # Verify all padding bytes are correct
+        expected_padding = bytes([padding_length] * padding_length)
+        if decrypted[-padding_length:] != expected_padding:
+            raise ValueError("Invalid padding bytes")
+        
         decrypted = decrypted[:-padding_length]
         
         json_string = decrypted.decode()
@@ -149,7 +197,7 @@ class RossettaMiddleware(BaseHTTPMiddleware):
                     request.state.decrypted_data = decrypted_payload['data']
             
             except Exception as e:
-                print(f"Decryption error: {str(e)}")
+                logger.error(f"Decryption error: {type(e).__name__}")
                 error_response = self.encrypt({'error': 'Invalid request format'}, session_key)
                 return Response(content=error_response, status_code=400, media_type='text/plain')
         
@@ -165,3 +213,44 @@ def encrypt_response(data: dict, session_key: str) -> str:
     timestamp = int(time.time() * 1000)
     response_payload = {'data': data, 'timestamp': timestamp}
     return middleware.encrypt(response_payload, session_key)
+
+
+def protected_route(f: Callable) -> Callable:
+    """
+    Decorator for routes that require encrypted responses
+    
+    Usage:
+        @app.get('/api/data')
+        @protected_route
+        async def get_data(request: Request):
+            return {'message': 'Hello, World!'}
+    """
+    @wraps(f)
+    async def decorated_function(*args, **kwargs):
+        # Find the Request object in the arguments
+        request = None
+        for arg in args:
+            if isinstance(arg, Request):
+                request = arg
+                break
+        
+        # Also check kwargs
+        if request is None:
+            request = kwargs.get('request')
+        
+        if request is None:
+            raise ValueError("Request object not found. Make sure to include Request in your route parameters.")
+        
+        # Call the original function
+        result = await f(*args, **kwargs) if asyncio.iscoroutinefunction(f) else f(*args, **kwargs)
+        
+        # If result is already a Response, return it as is
+        if isinstance(result, Response):
+            return result
+        
+        # Otherwise, encrypt it
+        session_key = request.state.rossetta['session_key']
+        encrypted = encrypt_response(result, session_key)
+        return Response(content=encrypted, media_type='text/plain')
+    
+    return decorated_function
