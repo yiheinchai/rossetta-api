@@ -10,7 +10,7 @@ import os
 # Add parent directory to path to import rossetta_fastapi
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rossetta_fastapi import setup_rossetta, encrypt_response, protected_route
+from rossetta_fastapi import setup_rossetta
 
 # Create FastAPI app
 app = FastAPI()
@@ -56,7 +56,6 @@ async def index():
 
 
 @app.get("/api/todos")
-@protected_route
 async def list_todos(request: Request):
     """List all todos - response is automatically encrypted"""
     return todos
@@ -79,15 +78,11 @@ async def create_todo(request: Request):
     todos.append(todo)
     next_id += 1
     
-    # Encrypt and return response
-    session_key = request.state.rossetta['session_key']
-    encrypted = encrypt_response(todo, session_key)
-    from fastapi import Response
-    return Response(content=encrypted, media_type='text/plain')
+    # Just return the data - encryption happens automatically
+    return todo
 
 
 @app.put("/api/todos/{todo_id}")
-@protected_route
 async def update_todo(todo_id: int, request: Request):
     """Update a todo"""
     data = request.state.decrypted_data
@@ -102,7 +97,6 @@ async def update_todo(todo_id: int, request: Request):
 
 
 @app.delete("/api/todos/{todo_id}")
-@protected_route
 async def delete_todo(todo_id: int, request: Request):
     """Delete a todo"""
     global todos

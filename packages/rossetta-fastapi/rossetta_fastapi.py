@@ -3,12 +3,23 @@
 Zero-config network request obfuscation middleware for FastAPI
 
 Usage:
-    from rossetta_fastapi import setup_rossetta
+    from fastapi import FastAPI, Request
     from starlette.middleware.sessions import SessionMiddleware
+    from rossetta_fastapi import setup_rossetta
     
     app = FastAPI()
     setup_rossetta(app)
     app.add_middleware(SessionMiddleware, secret_key="your-secret")
+    
+    # All /api/* endpoints automatically encrypted!
+    @app.get("/api/users")
+    async def get_users():
+        return {"users": []}  # Auto-encrypted
+    
+    @app.post("/api/users")
+    async def create_user(request: Request):
+        data = request.state.decrypted_data  # Auto-decrypted
+        return {"id": 1, "name": data["name"]}  # Auto-encrypted
 """
 
 from fastapi import FastAPI, Request, Response
@@ -185,6 +196,43 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         
         # Process request
         response = await call_next(request)
+        
+        # Auto-encrypt responses for API endpoints (except init-session and non-API routes)
+        if request.url.path.startswith('/api/') and request.url.path != '/api/init-session':
+            # Check if response is already encrypted (has text/plain media type from manual encryption)
+            if response.headers.get('content-type') != 'text/plain; charset=utf-8':
+                # Need to read the response body
+                response_body = b""
+                async for chunk in response.body_iterator:
+                    response_body += chunk
+                
+                # Only encrypt JSON responses
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type or response_body:
+                    try:
+                        # Parse JSON response
+                        import json as json_module
+                        if response_body:
+                            response_data = json_module.loads(response_body.decode())
+                        else:
+                            response_data = {}
+                        
+                        # Encrypt the response
+                        timestamp = int(time.time() * 1000)
+                        response_payload = {'data': response_data, 'timestamp': timestamp}
+                        encrypted = self.encrypt(response_payload, session_key)
+                        
+                        # Return encrypted response
+                        return Response(
+                            content=encrypted,
+                            status_code=response.status_code,
+                            headers={k: v for k, v in response.headers.items() if k.lower() != 'content-length'},
+                            media_type='text/plain'
+                        )
+                    except Exception as e:
+                        logger.error(f"Response encryption error: {type(e).__name__}")
+                        # Return original response if encryption fails
+                        pass
         
         return response
 

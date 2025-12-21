@@ -6,10 +6,9 @@ A complete working example demonstrating the Rossetta FastAPI middleware in acti
 
 This example demonstrates:
 - ✅ Automatic session initialization via `/api/init-session` endpoint
-- ✅ Encrypted request/response handling
-- ✅ Using the `@protected_route` decorator for automatic response encryption
-- ✅ Manual response encryption with `encrypt_response()`
-- ✅ Accessing decrypted request data
+- ✅ Automatic encrypted request/response handling for all `/api/*` endpoints
+- ✅ Zero manual encryption code - just return your data normally!
+- ✅ Accessing decrypted request data via `request.state.decrypted_data`
 - ✅ Complete CRUD API (Create, Read, Update, Delete)
 
 ## Installation
@@ -79,31 +78,29 @@ See the main README for client integration examples.
 
 ## Usage Patterns
 
-### Pattern 1: Using `@protected_route` Decorator
+### Pattern 1: Simple GET Endpoint (Recommended)
 
-The decorator automatically encrypts the response:
+Just return your data - encryption happens automatically:
 
 ```python
 @app.get("/api/todos")
-@protected_route
 async def list_todos(request: Request):
     return todos  # Automatically encrypted
 ```
 
-### Pattern 2: Manual Encryption
+### Pattern 2: POST Endpoint with Request Data
 
-For more control, manually encrypt responses:
+Access decrypted data and return your response:
 
 ```python
 @app.post("/api/todos")
 async def create_todo(request: Request):
     data = request.state.decrypted_data
     result = {"id": 1, "text": data['text']}
-    
-    session_key = request.state.rossetta['session_key']
-    encrypted = encrypt_response(result, session_key)
-    return Response(content=encrypted, media_type='text/plain')
+    return result  # Automatically encrypted
 ```
+
+No manual encryption needed!
 
 ## Environment Variables
 
