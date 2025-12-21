@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Zero-config obfuscated API client for browser and Node.js - protect your APIs from reverse engineering",
   "main": "index.js",
+  "types": "index.d.ts",
   "type": "module",
   "keywords": [
     "api",
@@ -30,6 +31,7 @@
   "homepage": "https://github.com/yiheinchai/rossetta-api#readme",
   "files": [
     "index.js",
+    "index.d.ts",
     "README.md",
     "LICENSE"
   ],
