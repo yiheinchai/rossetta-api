@@ -20,6 +20,8 @@ setup(
         "Source Code": "https://github.com/yiheinchai/rossetta-api/tree/main/packages/rossetta-flask",
     },
     py_modules=["rossetta_flask"],
+    # Note: Uses newer dependency versions than FastAPI package to ensure latest security patches
+    # Flask 2.3.2+ fixes session cookie vulnerability, cryptography 42.0.4+ fixes multiple CVEs
     install_requires=[
         "flask>=2.3.2",
         "cryptography>=42.0.4",

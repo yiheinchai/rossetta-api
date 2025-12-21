@@ -218,10 +218,10 @@ class RossettaFlask:
         if len(decrypted) < padding_length:
             raise ValueError("Invalid padding")
         
-        # Verify all padding bytes are correct
-        for i in range(padding_length):
-            if decrypted[-(i+1)] != padding_length:
-                raise ValueError("Invalid padding bytes")
+        # Verify all padding bytes are correct (optimized)
+        expected_padding = bytes([padding_length] * padding_length)
+        if decrypted[-padding_length:] != expected_padding:
+            raise ValueError("Invalid padding bytes")
         
         decrypted = decrypted[:-padding_length]
         
