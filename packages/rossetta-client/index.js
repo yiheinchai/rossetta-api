@@ -80,7 +80,7 @@ export class RossettaClient {
     const hashHex = hashArray
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    return `/api/${hashHex.substring(0, 16)}`;
+    return `/${hashHex.substring(0, 16)}`;
   }
 
   /**
