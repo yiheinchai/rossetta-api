@@ -471,9 +471,9 @@ def test_session_init(client):
 ## Compatibility
 
 - **Python**: 3.8+
-- **Flask**: 2.0+
+- **Flask**: 2.3.2+
 - **Tested with**:
-  - Flask 2.0, 2.1, 2.2, 2.3, 3.0
+  - Flask 2.3, 3.0
   - Python 3.8, 3.9, 3.10, 3.11, 3.12
 
 ## License

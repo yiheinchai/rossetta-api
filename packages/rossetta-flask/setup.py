@@ -21,8 +21,8 @@ setup(
     },
     py_modules=["rossetta_flask"],
     install_requires=[
-        "flask>=2.0.0",
-        "cryptography>=41.0.0",
+        "flask>=2.3.2",
+        "cryptography>=42.0.4",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
