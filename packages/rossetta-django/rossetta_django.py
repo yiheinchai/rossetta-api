@@ -151,8 +151,11 @@ class RossettaMiddleware:
         
         decrypted = decryptor.update(encrypted) + decryptor.finalize()
         
-        # Remove padding
-        padding_length = decrypted[-1]
+        # Remove padding with validation
+        padding_length = decrypted[-1] if len(decrypted) > 0 else 0
+        # Validate padding length (must be 1-16 for AES block size)
+        if padding_length < 1 or padding_length > 16:
+            raise ValueError("Invalid padding length")
         decrypted = decrypted[:-padding_length]
         
         json_string = decrypted.decode()
@@ -232,7 +235,11 @@ class RossettaHelper:
         
         decrypted = decryptor.update(encrypted) + decryptor.finalize()
         
-        padding_length = decrypted[-1]
+        # Remove padding with validation
+        padding_length = decrypted[-1] if len(decrypted) > 0 else 0
+        # Validate padding length (must be 1-16 for AES block size)
+        if padding_length < 1 or padding_length > 16:
+            raise ValueError("Invalid padding length")
         decrypted = decrypted[:-padding_length]
         
         json_string = decrypted.decode()

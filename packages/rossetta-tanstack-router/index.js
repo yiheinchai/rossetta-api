@@ -15,23 +15,22 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import RossettaClient from '@rossetta-api/client';
 
-// Lazy import for useRouterContext to avoid hard dependency
+// Note: @tanstack/react-router is a peer dependency and must be installed
+// This will fail with a clear error if not installed
 let useRouterContext;
-const getRouterContext = () => {
-  if (!useRouterContext) {
-    try {
-      // This will only execute when actually used
-      const tanstackRouter = require('@tanstack/react-router');
-      useRouterContext = tanstackRouter.useRouterContext;
-    } catch (error) {
-      throw new Error(
-        '@tanstack/react-router must be installed to use useRossettaRouterClient. ' +
-        'Install it with: npm install @tanstack/react-router'
-      );
-    }
-  }
-  return useRouterContext;
-};
+try {
+  // Dynamic import to make this optional during module loading
+  const routerModule = await import('@tanstack/react-router');
+  useRouterContext = routerModule.useRouterContext;
+} catch (error) {
+  // Provide a helpful error function
+  useRouterContext = () => {
+    throw new Error(
+      '@tanstack/react-router is not installed. ' +
+      'Please install it: npm install @tanstack/react-router'
+    );
+  };
+}
 
 /**
  * Create a Rossetta Router Context
@@ -124,8 +123,7 @@ export function createRossettaLoaderWithDeps(loaderFn) {
  * Hook to use Rossetta client in route components
  */
 export function useRossettaRouterClient() {
-  const routerContextHook = getRouterContext();
-  const routerContext = routerContextHook();
+  const routerContext = useRouterContext();
   const client = routerContext?.rossettaClient;
 
   if (!client) {
