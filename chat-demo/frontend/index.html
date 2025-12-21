@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Chat - Test App for Rossetta</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💬 Simple Chat</h1>
+      <p class="subtitle">Unencrypted chat app - Use this to test Rossetta packages!</p>
+    </header>
+
+    <main>
+      <div class="chat-box" id="chat-box">
+        <div class="empty-state">No messages yet. Start chatting!</div>
+      </div>
+
+      <form id="chat-form" class="chat-form">
+        <input 
+          type="text" 
+          id="username-input" 
+          placeholder="Your name" 
+          required
+        >
+        <input 
+          type="text" 
+          id="message-input" 
+          placeholder="Type a message..." 
+          required
+        >
+        <button type="submit">Send</button>
+      </form>
+
+      <div class="actions">
+        <button id="refresh-btn" class="secondary-btn">Refresh</button>
+        <button id="clear-btn" class="danger-btn">Clear All</button>
+      </div>
+
+      <div class="info-box">
+        <h3>🔍 Test Rossetta Packages Here!</h3>
+        <p>This is a simple, unencrypted chat app. Perfect for testing the Rossetta packages:</p>
+        <ol>
+          <li>Install: <code>pip install rossetta-fastapi</code></li>
+          <li>Add one line to main.py: <code>app.add_middleware(RossettaMiddleware)</code></li>
+          <li>Watch the network tab - all requests will be encrypted!</li>
+        </ol>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
