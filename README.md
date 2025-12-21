@@ -16,6 +16,11 @@ npm install @rossetta-api/express
 pip install rossetta-fastapi
 ```
 
+### For Flask
+```bash
+pip install rossetta-flask
+```
+
 ### For Frontend (Universal Client)
 ```bash
 npm install @rossetta-api/client
@@ -35,6 +40,13 @@ app.use(rossettaMiddleware());  // That's it!
 from rossetta_fastapi import RossettaMiddleware
 
 app.add_middleware(RossettaMiddleware)  # Done!
+```
+
+### Flask Backend
+```python
+from rossetta_flask import RossettaFlask
+
+rossetta = RossettaFlask(app)  # Done!
 ```
 
 ### Frontend (Browser or Node.js)
@@ -185,6 +197,11 @@ Ready-to-use packages for easy integration:
    - Easy integration: `app.add_middleware(RossettaMiddleware)`
    - [View Documentation](packages/rossetta-fastapi/README.md)
 
+### 4. **rossetta-flask** (PyPI)
+   - Flask middleware for Python backends
+   - Simple setup: `rossetta = RossettaFlask(app)`
+   - [View Documentation](packages/rossetta-flask/README.md)
+
 ### Example Usage:
 
 **Express Backend:**
@@ -214,6 +231,21 @@ app.add_middleware(RossettaMiddleware)
 
 @app.get("/todos")
 async def get_todos():
+    return [{"id": 1, "text": "Buy milk"}]
+```
+
+**Flask Backend:**
+```python
+from flask import Flask
+from rossetta_flask import RossettaFlask, protected_route
+
+app = Flask(__name__)
+app.secret_key = 'your-secret-key'
+rossetta = RossettaFlask(app)
+
+@app.route('/todos')
+@protected_route
+def get_todos():
     return [{"id": 1, "text": "Buy milk"}]
 ```
 

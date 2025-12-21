@@ -45,9 +45,11 @@ npm publish --access public
 
 **Note**: Use `--access public` for scoped packages (@rossetta-api/...) to make them publicly available.
 
-### Publish PyPI Package
+### Publish PyPI Packages
 
-#### 1. Build the package
+#### rossetta-fastapi
+
+**1. Build the package**
 
 ```bash
 cd packages/rossetta-fastapi
@@ -58,7 +60,28 @@ This creates:
 - `dist/rossetta-fastapi-0.1.0.tar.gz` (source distribution)
 - `dist/rossetta_fastapi-0.1.0-py3-none-any.whl` (wheel)
 
-#### 2. Upload to PyPI
+**2. Upload to PyPI**
+
+```bash
+python3 -m twine upload dist/*
+```
+
+Enter your PyPI username and API token when prompted.
+
+#### rossetta-flask
+
+**1. Build the package**
+
+```bash
+cd packages/rossetta-flask
+python3 -m build
+```
+
+This creates:
+- `dist/rossetta-flask-0.1.0.tar.gz` (source distribution)
+- `dist/rossetta_flask-0.1.0-py3-none-any.whl` (wheel)
+
+**2. Upload to PyPI**
 
 ```bash
 python3 -m twine upload dist/*
@@ -84,17 +107,26 @@ npm init -y
 npm install @rossetta-api/express
 ```
 
-### Verify PyPI Package
+### Verify PyPI Packages
+
+**rossetta-fastapi:**
 
 ```bash
-# Search for the package
-pip search rossetta-fastapi
-
 # View package info
 pip show rossetta-fastapi
 
 # Install and test
 pip install rossetta-fastapi
+```
+
+**rossetta-flask:**
+
+```bash
+# View package info
+pip show rossetta-flask
+
+# Install and test
+pip install rossetta-flask
 ```
 
 ## Post-Publishing
@@ -128,10 +160,11 @@ npm install @rossetta-api/express
 npm install @rossetta-api/client
 \`\`\`
 
-### PyPI Package
+### PyPI Packages
 
 \`\`\`bash
 pip install rossetta-fastapi
+pip install rossetta-flask
 \`\`\`
 ```
 
