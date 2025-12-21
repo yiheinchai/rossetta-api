@@ -6,19 +6,43 @@ Production-ready network request obfuscation with zero-config setup. Protect you
 
 ## 📦 Quick Install
 
-### For Express.js
+### Backend Packages
+
+#### For Express.js
 ```bash
 npm install @rossetta-api/express
 ```
 
-### For FastAPI
+#### For Next.js
+```bash
+npm install @rossetta-api/nextjs
+```
+
+#### For FastAPI
 ```bash
 pip install rossetta-fastapi
 ```
 
-### For Frontend (Universal Client)
+#### For Django
+```bash
+pip install rossetta-django
+```
+
+### Frontend Packages
+
+#### Universal Client (Browser or Node.js)
 ```bash
 npm install @rossetta-api/client
+```
+
+#### React Hooks & Context
+```bash
+npm install @rossetta-api/react
+```
+
+#### Tanstack Router Integration
+```bash
+npm install @rossetta-api/tanstack-router
 ```
 
 ## ⚡ Zero-Config Usage
@@ -170,20 +194,44 @@ All responses are encrypted before sending back to client:
 
 Ready-to-use packages for easy integration:
 
-### 1. **@rossetta-api/express** (NPM)
+### Backend Packages
+
+#### 1. **@rossetta-api/express** (NPM)
    - Express.js middleware for automatic endpoint obfuscation
    - Zero-config setup: `app.use(rossettaMiddleware())`
    - [View Documentation](packages/rossetta-express/README.md)
 
-### 2. **@rossetta-api/client** (NPM)
+#### 2. **@rossetta-api/nextjs** (NPM)
+   - Next.js middleware for App Router and Pages Router
+   - Seamless integration with Next.js 13+
+   - [View Documentation](packages/rossetta-nextjs/README.md)
+
+#### 3. **rossetta-fastapi** (PyPI)
+   - FastAPI middleware for Python backends
+   - Easy integration: `app.add_middleware(RossettaMiddleware)`
+   - [View Documentation](packages/rossetta-fastapi/README.md)
+
+#### 4. **rossetta-django** (PyPI)
+   - Django middleware for Django 3.2+
+   - Works with Django REST Framework
+   - [View Documentation](packages/rossetta-django/README.md)
+
+### Frontend Packages
+
+#### 5. **@rossetta-api/client** (NPM)
    - Universal client for browser and Node.js
    - Simple API: `const api = new RossettaClient(baseURL)`
    - [View Documentation](packages/rossetta-client/README.md)
 
-### 3. **rossetta-fastapi** (PyPI)
-   - FastAPI middleware for Python backends
-   - Easy integration: `app.add_middleware(RossettaMiddleware)`
-   - [View Documentation](packages/rossetta-fastapi/README.md)
+#### 6. **@rossetta-api/react** (NPM)
+   - React hooks and context provider
+   - Easy data fetching with `useRossettaGet`, `useRossettaPost`, etc.
+   - [View Documentation](packages/rossetta-react/README.md)
+
+#### 7. **@rossetta-api/tanstack-router** (NPM)
+   - Tanstack Router integration with loaders
+   - Type-safe route data fetching
+   - [View Documentation](packages/rossetta-tanstack-router/README.md)
 
 ### Example Usage:
 
@@ -204,6 +252,19 @@ app.get('/todos', (req, res) => {
 });
 ```
 
+**Next.js Backend (App Router):**
+```typescript
+import { createRossettaHandler } from '@rossetta-api/nextjs';
+
+export const GET = createRossettaHandler(async () => {
+  return [{ id: 1, text: 'Buy milk' }];
+});
+
+export const POST = createRossettaHandler(async (data) => {
+  return { id: 2, text: data.text };
+});
+```
+
 **FastAPI Backend:**
 ```python
 from fastapi import FastAPI
@@ -217,13 +278,60 @@ async def get_todos():
     return [{"id": 1, "text": "Buy milk"}]
 ```
 
-**Frontend:**
+**Django Backend:**
+```python
+from rossetta_django import rossetta_view
+
+@rossetta_view
+def todos(request):
+    if request.method == 'GET':
+        return [{"id": 1, "text": "Buy milk"}]
+    elif request.method == 'POST':
+        return {"id": 2, "text": request.data['text']}
+```
+
+**Universal Client:**
 ```javascript
 import RossettaClient from '@rossetta-api/client';
 
 const api = new RossettaClient('http://localhost:3001');
 const todos = await api.get('/todos');  // Automatically encrypted!
 const newTodo = await api.post('/todos', { text: 'Buy milk' });
+```
+
+**React Frontend:**
+```jsx
+import { RossettaProvider, useRossettaGet, useRossettaPost } from '@rossetta-api/react';
+
+function App() {
+  return (
+    <RossettaProvider baseURL="http://localhost:3000">
+      <TodoList />
+    </RossettaProvider>
+  );
+}
+
+function TodoList() {
+  const { data: todos, loading, refetch } = useRossettaGet('/todos');
+  const { post } = useRossettaPost('/todos');
+  
+  const handleAdd = async () => {
+    await post({ text: 'New todo' });
+    refetch();
+  };
+  
+  return <div>{/* ... */}</div>;
+}
+```
+
+**Tanstack Router:**
+```typescript
+import { createRossettaLoader } from '@rossetta-api/tanstack-router';
+
+const todosRoute = createRoute({
+  path: '/todos',
+  loader: createRossettaLoader('/todos')
+});
 ```
 
 ## 🔧 Configuration

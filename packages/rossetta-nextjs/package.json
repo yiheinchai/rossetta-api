@@ -1,0 +1,45 @@
+{
+  "name": "@rossetta-api/nextjs",
+  "version": "0.1.0",
+  "description": "Zero-config network request obfuscation middleware for Next.js - protect your APIs from reverse engineering",
+  "main": "index.js",
+  "type": "module",
+  "keywords": [
+    "nextjs",
+    "next",
+    "middleware",
+    "encryption",
+    "obfuscation",
+    "security",
+    "rossetta",
+    "api-security",
+    "endpoint-obfuscation",
+    "request-encryption",
+    "aes-256",
+    "hmac",
+    "app-router",
+    "pages-router"
+  ],
+  "author": "Rossetta API Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "next": "^13.0.0 || ^14.0.0 || ^15.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yiheinchai/rossetta-api",
+    "directory": "packages/rossetta-nextjs"
+  },
+  "bugs": {
+    "url": "https://github.com/yiheinchai/rossetta-api/issues"
+  },
+  "homepage": "https://github.com/yiheinchai/rossetta-api#readme",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}

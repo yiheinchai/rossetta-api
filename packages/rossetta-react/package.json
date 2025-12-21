@@ -1,0 +1,44 @@
+{
+  "name": "@rossetta-api/react",
+  "version": "0.1.0",
+  "description": "React hooks and components for Rossetta API - zero-config network request obfuscation",
+  "main": "index.js",
+  "type": "module",
+  "keywords": [
+    "react",
+    "hooks",
+    "encryption",
+    "obfuscation",
+    "security",
+    "rossetta",
+    "api-security",
+    "react-hooks",
+    "context",
+    "fetch"
+  ],
+  "author": "Rossetta API Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@rossetta-api/client": "^0.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yiheinchai/rossetta-api",
+    "directory": "packages/rossetta-react"
+  },
+  "bugs": {
+    "url": "https://github.com/yiheinchai/rossetta-api/issues"
+  },
+  "homepage": "https://github.com/yiheinchai/rossetta-api#readme",
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
