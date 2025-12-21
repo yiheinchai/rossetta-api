@@ -1,16 +1,64 @@
 # 🔐 Rossetta API
 
-An overpowered todo list app demonstrating completely obfuscated network requests that prevent reverse engineering through browser DevTools.
+Production-ready network request obfuscation with zero-config setup. Protect your APIs from reverse engineering with session-based encryption and endpoint obfuscation.
 
-This project is a proof-of-concept for creating NPM packages that provide network request obfuscation with minimal setup, democratizing advanced security features for all applications.
+**Now available as NPM and PyPI packages!**
+
+## 📦 Quick Install
+
+### For Express.js
+```bash
+npm install @rossetta-api/express
+```
+
+### For FastAPI
+```bash
+pip install rossetta-fastapi
+```
+
+### For Frontend (Universal Client)
+```bash
+npm install @rossetta-api/client
+```
+
+## ⚡ Zero-Config Usage
+
+### Express.js Backend
+```javascript
+import { rossettaMiddleware } from '@rossetta-api/express';
+
+app.use(rossettaMiddleware());  // That's it!
+```
+
+### FastAPI Backend
+```python
+from rossetta_fastapi import RossettaMiddleware
+
+app.add_middleware(RossettaMiddleware)  # Done!
+```
+
+### Frontend (Browser or Node.js)
+```javascript
+import RossettaClient from '@rossetta-api/client';
+
+const api = new RossettaClient('http://localhost:3000');
+const data = await api.get('/todos');  // Automatically encrypted!
+```
 
 ## ✨ Features
 
-- **🔒 Encrypted Communication**: All request and response payloads are encrypted using AES-256-CBC
+- **🔒 Session-Based Encryption**: No hardcoded secrets - keys generated per session
 - **🛡️ Obfuscated Endpoints**: API endpoints are hashed and unreadable in network inspector
-- **✅ Anti-Replay Protection**: Timestamp-based nonce system prevents replay attacks
-- **🔐 Request Signatures**: HMAC signatures verify request integrity
-- **🎯 Zero Reverse Engineering**: Impossible to reverse-engineer API structure from browser DevTools
+- **✅ Anti-Replay Protection**: Timestamp-based validation prevents replay attacks
+- **🔐 Request Signatures**: HMAC-SHA256 verifies request integrity
+- **🎯 Zero Reverse Engineering**: Impossible to determine API structure from browser DevTools
+- **⚡ Zero-Config Setup**: Works out of the box with minimal code
+
+## 🎨 Demo Application
+
+This repository includes a beautiful todo list demo app with a ClickUp-inspired UI showcasing all security features.
+
+![Rossetta Todo App](https://github.com/user-attachments/assets/f32d4551-4a62-4c20-ab7b-38672e3d190a)
 
 ## 🚀 Quick Start
 
@@ -111,54 +159,71 @@ All responses are encrypted before sending back to client:
 
 ### 4. Security Layers
 
+- **Session-Based Keys**: Unique encryption keys per session, generated server-side
 - **AES-256-CBC Encryption**: Industry-standard symmetric encryption
 - **HMAC Signatures**: Prevent request tampering
 - **Timestamp Validation**: Prevent replay attacks (5-minute window)
 - **Random IVs**: Each encryption uses a unique initialization vector
+- **No Hardcoded Secrets**: Frontend never contains encryption keys
 
-## 🎯 Future: NPM Package
+## 📦 NPM & PyPI Packages
 
-This project serves as a foundation for creating NPM packages:
+Ready-to-use packages for easy integration:
 
-### Planned Packages:
+### 1. **@rossetta-api/express** (NPM)
+   - Express.js middleware for automatic endpoint obfuscation
+   - Zero-config setup: `app.use(rossettaMiddleware())`
+   - [View Documentation](packages/rossetta-express/README.md)
 
-1. **@rossetta-api/server**
-   - Express middleware for automatic endpoint obfuscation
-   - Easy integration: `app.use(rossettaMiddleware())`
-
-2. **@rossetta-api/client**
-   - Browser and Node.js client for obfuscated requests
+### 2. **@rossetta-api/client** (NPM)
+   - Universal client for browser and Node.js
    - Simple API: `const api = new RossettaClient(baseURL)`
+   - [View Documentation](packages/rossetta-client/README.md)
 
-3. **@rossetta-api/shared**
-   - Shared cryptographic utilities
-   - Configurable security settings
+### 3. **rossetta-fastapi** (PyPI)
+   - FastAPI middleware for Python backends
+   - Easy integration: `app.add_middleware(RossettaMiddleware)`
+   - [View Documentation](packages/rossetta-fastapi/README.md)
 
-### Example Usage (Future):
+### Example Usage:
 
+**Express Backend:**
 ```javascript
-// Backend
 import express from 'express';
-import { rossettaMiddleware } from '@rossetta-api/server';
+import { rossettaMiddleware, createSessionInitHandler } from '@rossetta-api/express';
 
 const app = express();
-app.use(rossettaMiddleware({ secret: process.env.SECRET_KEY }));
+app.use(rossettaMiddleware());
 
-app.post('/todos', (req, res) => {
-  // Request automatically decrypted
-  const { text } = req.body;
-  // Response automatically encrypted
-  res.json({ id: '1', text });
+// Session init endpoint
+app.post('/api/init-session', createSessionInitHandler());
+
+// Your routes - automatically encrypted!
+app.get('/todos', (req, res) => {
+  res.encryptResponse([{ id: 1, text: 'Buy milk' }]);
 });
+```
 
-// Frontend
-import { RossettaClient } from '@rossetta-api/client';
+**FastAPI Backend:**
+```python
+from fastapi import FastAPI
+from rossetta_fastapi import RossettaMiddleware
 
-const api = new RossettaClient('http://localhost:3001', {
-  secret: 'your-secret-key'
-});
+app = FastAPI()
+app.add_middleware(RossettaMiddleware)
 
-const todo = await api.post('/todos', { text: 'Buy milk' });
+@app.get("/todos")
+async def get_todos():
+    return [{"id": 1, "text": "Buy milk"}]
+```
+
+**Frontend:**
+```javascript
+import RossettaClient from '@rossetta-api/client';
+
+const api = new RossettaClient('http://localhost:3001');
+const todos = await api.get('/todos');  // Automatically encrypted!
+const newTodo = await api.post('/todos', { text: 'Buy milk' });
 ```
 
 ## 🔧 Configuration
