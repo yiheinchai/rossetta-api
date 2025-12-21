@@ -64,10 +64,10 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         self.timestamp_window = timestamp_window
 
     def obfuscate_endpoint(self, endpoint: str, salt: str) -> str:
-        """Generate obfuscated endpoint path"""
-        hash_input = f"{endpoint}{salt}".encode()
-        hash_digest = hashlib.sha256(hash_input).hexdigest()
-        return f"/api/{hash_digest[:16]}"
+        raw_string = endpoint + salt
+        data = raw_string.encode("utf-8")
+        hash_hex = hashlib.sha256(data).hexdigest()
+        return f"/{hash_hex[:16]}"
 
     def encrypt(self, data: dict, session_key: str) -> str:
         """Encrypt data for transmission"""
@@ -179,6 +179,19 @@ class RossettaMiddleware(BaseHTTPMiddleware):
             "encrypt": lambda data: self.encrypt(data, session_key),
             "decrypt": lambda data: self.decrypt(data, session_key),
         }
+
+        # Check if incoming request path is an obfuscated endpoint
+        # Loop through all routes and check if path matches any obfuscated version
+        original_path = request.url.path
+        for route in request.app.routes:
+            if hasattr(route, "path"):
+                route_path = route.path
+                obfuscated_path = self.obfuscate_endpoint(route_path, endpoint_salt)
+
+                if original_path == obfuscated_path:
+                    # Replace request scope path with original endpoint
+                    request.scope["path"] = route_path
+                    break
 
         # Decrypt incoming requests
         if request.method in ["POST", "PUT", "DELETE"]:

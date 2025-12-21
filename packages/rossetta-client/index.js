@@ -73,8 +73,15 @@ export class RossettaClient {
    * Obfuscate endpoint
    */
   async obfuscateEndpoint(endpoint) {
+    // Extract just the path portion from the endpoint
+    let path = endpoint;
+    if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+      const url = new URL(endpoint);
+      path = url.pathname; // + url.search + url.hash;
+    }
+
     const encoder = new TextEncoder();
-    const data = encoder.encode(endpoint + this.endpointSalt);
+    const data = encoder.encode(path + this.endpointSalt);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray
