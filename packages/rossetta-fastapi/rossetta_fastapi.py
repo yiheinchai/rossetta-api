@@ -200,22 +200,18 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         # Auto-encrypt responses for API endpoints (except init-session and non-API routes)
         if request.url.path.startswith('/api/') and request.url.path != '/api/init-session':
             # Check if response is already encrypted (has text/plain media type from manual encryption)
-            if response.headers.get('content-type') != 'text/plain; charset=utf-8':
+            content_type = response.headers.get('content-type', '')
+            if not content_type.startswith('text/plain'):
                 # Need to read the response body
                 response_body = b""
                 async for chunk in response.body_iterator:
                     response_body += chunk
                 
                 # Only encrypt JSON responses
-                content_type = response.headers.get('content-type', '')
-                if 'application/json' in content_type or response_body:
+                if 'application/json' in content_type and response_body:
                     try:
                         # Parse JSON response
-                        import json as json_module
-                        if response_body:
-                            response_data = json_module.loads(response_body.decode())
-                        else:
-                            response_data = {}
+                        response_data = json.loads(response_body.decode())
                         
                         # Encrypt the response
                         timestamp = int(time.time() * 1000)
@@ -238,11 +234,32 @@ class RossettaMiddleware(BaseHTTPMiddleware):
 
 
 def encrypt_response(data: dict, session_key: str) -> str:
-    """Helper function to encrypt responses"""
-    middleware = RossettaMiddleware(None)
+    """
+    Helper function to manually encrypt responses (advanced usage).
+    
+    Note: This is rarely needed as automatic encryption is enabled for all /api/* endpoints.
+    """
+    # Use the encryption logic directly without creating middleware instance
+    key = hashlib.sha256(session_key.encode()).digest()
+    iv = secrets.token_bytes(16)
+    
     timestamp = int(time.time() * 1000)
     response_payload = {'data': data, 'timestamp': timestamp}
-    return middleware.encrypt(response_payload, session_key)
+    json_string = json.dumps(response_payload)
+    
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    
+    # Pad data to be multiple of 16 bytes
+    padding_length = 16 - (len(json_string) % 16)
+    padded_data = json_string + (chr(padding_length) * padding_length)
+    
+    encrypted = encryptor.update(padded_data.encode()) + encryptor.finalize()
+    
+    iv_b64 = b64encode(iv).decode()
+    encrypted_b64 = b64encode(encrypted).decode()
+    
+    return f"{iv_b64}:{encrypted_b64}"
 
 
 def protected_route(f: Callable) -> Callable:
@@ -297,10 +314,10 @@ def setup_rossetta(app, secret: str = DEFAULT_SECRET, timestamp_window: int = TI
         
         app = FastAPI()
         
-        # Setup Rossetta (this adds the middleware and creates /api/init-session)
+        # Setup Rossetta (adds middleware and creates /api/init-session endpoint)
         setup_rossetta(app)
         
-        # Add session middleware after
+        # Add session middleware (middleware execution order in Starlette is reverse of registration)
         app.add_middleware(SessionMiddleware, secret_key="your-secret")
     
     Args:
