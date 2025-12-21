@@ -75,7 +75,7 @@ class RossettaMiddleware(BaseHTTPMiddleware):
     
     def decrypt(self, encrypted_data: str, session_key: str) -> dict:
         """Decrypt received data"""
-        # Split on first colon only to handle data that may contain colons
+        # Split on first colon to separate IV from encrypted data
         parts = encrypted_data.split(':', 1)
         if len(parts) != 2:
             raise ValueError("Invalid encrypted data format")
@@ -260,8 +260,6 @@ def setup_rossetta(app, secret: str = DEFAULT_SECRET, timestamp_window: int = TI
         secret: Secret key for encryption (defaults to env var or auto-generated)
         timestamp_window: Request validity window in milliseconds (default: 300000)
     """
-    from fastapi import FastAPI
-    
     if not isinstance(app, FastAPI):
         raise TypeError("app must be a FastAPI instance")
     

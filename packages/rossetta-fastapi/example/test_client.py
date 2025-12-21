@@ -57,7 +57,12 @@ class RossettaClient:
     
     def decrypt(self, encrypted_data):
         """Decrypt received data"""
-        iv_b64, encrypted_b64 = encrypted_data.split(':')
+        # Split on first colon to separate IV from encrypted data
+        parts = encrypted_data.split(':', 1)
+        if len(parts) != 2:
+            raise ValueError("Invalid encrypted data format")
+        
+        iv_b64, encrypted_b64 = parts
         iv = b64decode(iv_b64)
         encrypted = b64decode(encrypted_b64)
         
@@ -68,8 +73,25 @@ class RossettaClient:
         
         decrypted = decryptor.update(encrypted) + decryptor.finalize()
         
-        # Remove padding
+        # Validate and remove padding
+        if len(decrypted) == 0:
+            raise ValueError("Decrypted data is empty")
+        
         padding_length = decrypted[-1]
+        
+        # Validate padding length (must be 1-16 for AES block size)
+        if padding_length < 1 or padding_length > 16:
+            raise ValueError("Invalid padding length")
+        
+        # Validate padding bytes
+        if len(decrypted) < padding_length:
+            raise ValueError("Invalid padding")
+        
+        # Verify all padding bytes are correct
+        expected_padding = bytes([padding_length] * padding_length)
+        if decrypted[-padding_length:] != expected_padding:
+            raise ValueError("Invalid padding bytes")
+        
         decrypted = decrypted[:-padding_length]
         
         json_string = decrypted.decode()
