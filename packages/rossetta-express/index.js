@@ -7,6 +7,7 @@
  *   app.use(rossettaMiddleware());
  */
 
+import express from 'express';
 import crypto from 'crypto';
 import expressSession from 'express-session';
 
@@ -110,72 +111,75 @@ export function rossettaMiddleware(options = {}) {
    * Main middleware function
    */
   return function rossetta(req, res, next) {
-    // Apply session middleware first
-    sessionMiddleware(req, res, () => {
-      // Initialize session if not exists
-      if (!req.session.rossettaKey) {
-        req.session.rossettaKey = crypto.randomBytes(32).toString('hex');
-        req.session.endpointSalt = crypto.randomBytes(16).toString('hex');
-      }
+    // Parse text body first for encrypted payloads
+    express.text({ type: 'text/plain' })(req, res, () => {
+      // Apply session middleware
+      sessionMiddleware(req, res, () => {
+        // Initialize session if not exists
+        if (!req.session.rossettaKey) {
+          req.session.rossettaKey = crypto.randomBytes(32).toString('hex');
+          req.session.endpointSalt = crypto.randomBytes(16).toString('hex');
+        }
 
-      const sessionKey = req.session.rossettaKey;
-      const endpointSalt = req.session.endpointSalt;
+        const sessionKey = req.session.rossettaKey;
+        const endpointSalt = req.session.endpointSalt;
 
-      // Helper function to encrypt responses
-      res.encryptResponse = function(data) {
-        const timestamp = Date.now();
-        const responsePayload = { data, timestamp };
-        const encrypted = encrypt(responsePayload, sessionKey);
-        this.setHeader('Content-Type', 'text/plain');
-        return this.send(encrypted);
-      };
+        // Helper function to encrypt responses
+        res.encryptResponse = function(data) {
+          const timestamp = Date.now();
+          const responsePayload = { data, timestamp };
+          const encrypted = encrypt(responsePayload, sessionKey);
+          this.setHeader('Content-Type', 'text/plain');
+          return this.send(encrypted);
+        };
 
-      // Helper to obfuscate endpoints
-      req.obfuscateEndpoint = function(endpointName) {
-        return obfuscateEndpoint(endpointName, endpointSalt);
-      };
+        // Helper to obfuscate endpoints
+        req.obfuscateEndpoint = function(endpointName) {
+          return obfuscateEndpoint(endpointName, endpointSalt);
+        };
 
-      // Store session info for route handlers
-      req.rossetta = {
-        sessionKey,
-        endpointSalt,
-        obfuscateEndpoint: (name) => obfuscateEndpoint(name, endpointSalt),
-        encrypt: (data) => encrypt(data, sessionKey),
-        decrypt: (data) => decrypt(data, sessionKey)
-      };
+        // Store session info for route handlers
+        req.rossetta = {
+          sessionKey,
+          endpointSalt,
+          obfuscateEndpoint: (name) => obfuscateEndpoint(name, endpointSalt),
+          encrypt: (data) => encrypt(data, sessionKey),
+          decrypt: (data) => decrypt(data, sessionKey)
+        };
 
-      // Decrypt incoming requests
-      if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
-        if (req.body && typeof req.body === 'string') {
-          try {
-            const decryptedPayload = decrypt(req.body, sessionKey);
-            
-            // Verify timestamp
-            if (!isTimestampValid(decryptedPayload.timestamp)) {
-              const encryptedError = encrypt({ error: 'Request expired' }, sessionKey);
-              res.status(401).setHeader('Content-Type', 'text/plain').send(encryptedError);
+        // Decrypt incoming requests
+        if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
+          if (req.body && typeof req.body === 'string') {
+            try {
+              const decryptedPayload = decrypt(req.body, sessionKey);
+              
+              // Verify timestamp
+              if (!isTimestampValid(decryptedPayload.timestamp)) {
+                const encryptedError = encrypt({ error: 'Request expired' }, sessionKey);
+                res.status(401).setHeader('Content-Type', 'text/plain').send(encryptedError);
+                return;
+              }
+
+              // Verify signature
+              if (!verifySignature(decryptedPayload.data, decryptedPayload.timestamp, decryptedPayload.signature, sessionKey)) {
+                const encryptedError = encrypt({ error: 'Invalid signature' }, sessionKey);
+                res.status(401).setHeader('Content-Type', 'text/plain').send(encryptedError);
+                return;
+              }
+
+              // Replace body with decrypted data
+              req.body = decryptedPayload.data;
+            } catch (error) {
+              console.error('Decryption error:', error.message);
+              const encryptedError = encrypt({ error: 'Invalid request format' }, sessionKey);
+              res.status(400).setHeader('Content-Type', 'text/plain').send(encryptedError);
               return;
             }
-
-            // Verify signature
-            if (!verifySignature(decryptedPayload.data, decryptedPayload.timestamp, decryptedPayload.signature, sessionKey)) {
-              const encryptedError = encrypt({ error: 'Invalid signature' }, sessionKey);
-              res.status(401).setHeader('Content-Type', 'text/plain').send(encryptedError);
-              return;
-            }
-
-            // Replace body with decrypted data
-            req.body = decryptedPayload.data;
-          } catch (error) {
-            console.error('Decryption error:', error.message);
-            const encryptedError = encrypt({ error: 'Invalid request format' }, sessionKey);
-            res.status(400).setHeader('Content-Type', 'text/plain').send(encryptedError);
-            return;
           }
         }
-      }
 
-      next();
+        next();
+      });
     });
   };
 }

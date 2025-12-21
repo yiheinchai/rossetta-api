@@ -1,13 +1,14 @@
 /**
- * Rossetta API Client for Todo App
- * This file imports and uses the @rossetta-api/client package
+ * @rossetta-api/client
+ * Zero-config obfuscated API client
+ * 
+ * Usage:
+ *   import RossettaClient from '@rossetta-api/client';
+ *   const client = new RossettaClient('http://localhost:3001');
+ *   await client.post('/todos', { text: 'Buy milk' });
  */
 
-// For this demo, we need to include the RossettaClient directly
-// In production, users would: import RossettaClient from '@rossetta-api/client';
-
-// Inline the client for the demo (normally this would be from the package)
-class RossettaClient {
+export class RossettaClient {
   constructor(baseURL, options = {}) {
     this.baseURL = baseURL;
     this.sessionKey = null;
@@ -16,6 +17,9 @@ class RossettaClient {
     this.initPromise = null;
   }
 
+  /**
+   * Initialize session with server
+   */
   async initialize() {
     if (this.initialized) return;
     
@@ -38,7 +42,6 @@ class RossettaClient {
         this.sessionKey = data.sessionKey;
         this.endpointSalt = data.endpointSalt;
         this.initialized = true;
-        console.log('✅ Session initialized securely');
       } catch (error) {
         console.error('Session initialization failed:', error);
         throw error;
@@ -48,6 +51,9 @@ class RossettaClient {
     return this.initPromise;
   }
 
+  /**
+   * Derive crypto key from session key
+   */
   async deriveKey() {
     const encoder = new TextEncoder();
     const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(this.sessionKey));
@@ -60,6 +66,9 @@ class RossettaClient {
     );
   }
 
+  /**
+   * Obfuscate endpoint
+   */
   async obfuscateEndpoint(endpoint) {
     const encoder = new TextEncoder();
     const data = encoder.encode(endpoint + this.endpointSalt);
@@ -69,8 +78,12 @@ class RossettaClient {
     return `/api/${hashHex.substring(0, 16)}`;
   }
 
+  /**
+   * Encrypt data
+   */
   async encrypt(data) {
     const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
     const jsonString = JSON.stringify(data);
     const key = await this.deriveKey();
     const iv = crypto.getRandomValues(new Uint8Array(16));
@@ -87,6 +100,9 @@ class RossettaClient {
     return ivBase64 + ':' + encryptedBase64;
   }
 
+  /**
+   * Decrypt data
+   */
   async decrypt(encryptedData) {
     const decoder = new TextDecoder();
     const [ivBase64, encryptedBase64] = encryptedData.split(':');
@@ -105,6 +121,9 @@ class RossettaClient {
     return JSON.parse(jsonString);
   }
 
+  /**
+   * Create signature
+   */
   async createSignature(data, timestamp) {
     const encoder = new TextEncoder();
     const payload = JSON.stringify(data) + timestamp;
@@ -126,6 +145,9 @@ class RossettaClient {
     return signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
+  /**
+   * Make an obfuscated API request
+   */
   async request(endpoint, method = 'GET', data = null) {
     await this.initialize();
 
@@ -165,39 +187,25 @@ class RossettaClient {
 
     return decryptedResponse.data;
   }
+
+  /**
+   * HTTP method helpers
+   */
+  async get(endpoint) {
+    return this.request(endpoint, 'GET');
+  }
+
+  async post(endpoint, data) {
+    return this.request(endpoint, 'POST', data);
+  }
+
+  async put(endpoint, data) {
+    return this.request(endpoint, 'PUT', data);
+  }
+
+  async delete(endpoint, data) {
+    return this.request(endpoint, 'DELETE', data);
+  }
 }
 
-// Create client instance
-const client = new RossettaClient('http://localhost:3001');
-
-// Define endpoint names (must match backend)
-const ENDPOINTS = {
-  LIST_TODOS: 'list-todos',
-  CREATE_TODO: 'create-todo',
-  UPDATE_TODO: 'update-todo',
-  DELETE_TODO: 'delete-todo',
-  TOGGLE_TODO: 'toggle-todo'
-};
-
-// API methods for todo operations
-export const RossettaAPI = {
-  async listTodos() {
-    return client.request(ENDPOINTS.LIST_TODOS, 'GET');
-  },
-  
-  async createTodo(text) {
-    return client.request(ENDPOINTS.CREATE_TODO, 'POST', { text });
-  },
-  
-  async updateTodo(id, text) {
-    return client.request(ENDPOINTS.UPDATE_TODO, 'PUT', { id, text });
-  },
-  
-  async toggleTodo(id) {
-    return client.request(ENDPOINTS.TOGGLE_TODO, 'POST', { id });
-  },
-  
-  async deleteTodo(id) {
-    return client.request(ENDPOINTS.DELETE_TODO, 'DELETE', { id });
-  }
-};
+export default RossettaClient;

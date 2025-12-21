@@ -3,7 +3,19 @@
   "version": "1.0.0",
   "description": "Frontend for obfuscated todo list app",
   "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "keywords": ["frontend", "encryption", "security"],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@rossetta-api/client": "file:../packages/rossetta-client"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
 }
