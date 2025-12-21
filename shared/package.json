@@ -1,0 +1,10 @@
+{
+  "name": "@rossetta-api/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities for obfuscated API communication",
+  "main": "crypto.js",
+  "type": "module",
+  "keywords": ["encryption", "obfuscation", "security", "api"],
+  "author": "",
+  "license": "MIT"
+}

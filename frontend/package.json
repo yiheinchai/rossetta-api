@@ -1,0 +1,9 @@
+{
+  "name": "@rossetta-api/frontend",
+  "version": "1.0.0",
+  "description": "Frontend for obfuscated todo list app",
+  "main": "index.html",
+  "keywords": ["frontend", "encryption", "security"],
+  "author": "",
+  "license": "MIT"
+}

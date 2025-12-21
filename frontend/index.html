@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rossetta Todo - Obfuscated API Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔐 Rossetta Todo</h1>
+      <p class="subtitle">Secure Todo List with Obfuscated Network Requests</p>
+      <div class="security-badge">
+        <span class="badge">🛡️ Encrypted Communication</span>
+        <span class="badge">🔒 Obfuscated Endpoints</span>
+        <span class="badge">✅ Anti-Replay Protection</span>
+      </div>
+    </header>
+
+    <main>
+      <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <span>Loading...</span>
+      </div>
+
+      <div id="error" class="error" style="display: none;"></div>
+
+      <section class="add-todo-section">
+        <form id="add-todo-form">
+          <input 
+            type="text" 
+            id="todo-input" 
+            placeholder="What needs to be done?" 
+            required
+            autocomplete="off"
+          >
+          <button type="submit" id="add-btn" class="btn-primary">Add Todo</button>
+        </form>
+      </section>
+
+      <section class="todos-section">
+        <div id="todos-container">
+          <p class="empty-state">Loading todos...</p>
+        </div>
+      </section>
+
+      <section class="info-section">
+        <h2>🔍 Try This:</h2>
+        <ol class="instructions">
+          <li>Open your browser's Developer Tools (F12)</li>
+          <li>Go to the Network tab</li>
+          <li>Add, edit, or toggle a todo</li>
+          <li>Inspect the network requests - you'll see:</li>
+        </ol>
+        <ul class="features">
+          <li>✨ Endpoint URLs are hashed (not human-readable)</li>
+          <li>✨ Request and response payloads are encrypted</li>
+          <li>✨ All data appears as random strings in DevTools</li>
+          <li>✨ No way to reverse-engineer the API from the browser</li>
+        </ul>
+        <div class="warning">
+          <strong>⚠️ Note:</strong> This is a demo. The secret key is hardcoded for demonstration purposes. 
+          In production, use environment variables and secure key management.
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Built with Rossetta API - Democratizing overpowered security features</p>
+    </footer>
+  </div>
+
+  <!-- Load scripts in order: crypto utilities, API client, app logic -->
+  <script src="crypto-client.js"></script>
+  <script src="api-client.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
