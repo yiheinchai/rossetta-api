@@ -1,0 +1,14 @@
+{
+  "name": "@rossetta-api/client",
+  "version": "1.0.0",
+  "description": "Zero-config obfuscated API client for browser and Node.js",
+  "main": "index.js",
+  "type": "module",
+  "keywords": ["api", "client", "encryption", "obfuscation", "security", "rossetta"],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yiheinchai/rossetta-api"
+  }
+}

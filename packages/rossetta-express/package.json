@@ -1,0 +1,20 @@
+{
+  "name": "@rossetta-api/express",
+  "version": "1.0.0",
+  "description": "Zero-config network request obfuscation middleware for Express.js",
+  "main": "index.js",
+  "type": "module",
+  "keywords": ["express", "middleware", "encryption", "obfuscation", "security", "rossetta"],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "express": "^4.18.0"
+  },
+  "dependencies": {
+    "express-session": "^1.17.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yiheinchai/rossetta-api"
+  }
+}

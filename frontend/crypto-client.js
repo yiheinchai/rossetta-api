@@ -1,16 +1,60 @@
 /**
  * Browser-compatible crypto utilities for obfuscated API communication
- * This is the client-side implementation that mirrors the server-side crypto
+ * This is the client-side implementation that uses session-based keys
  * 
- * ⚠️ WARNING: This is a demonstration with a hardcoded key.
- * In production, implement proper key exchange or derive keys server-side.
+ * Keys are obtained from the server via secure session initialization
  */
 
-// Shared secret key - must match server
-// WARNING: Hardcoded keys in client-side JavaScript are visible to everyone!
-// This is for demonstration only. In production, use secure key management.
-const SECRET_KEY = 'rossetta-default-secret-key-change-me-32';
+// Session-based encryption key (obtained from server)
+let SESSION_KEY = null;
+let SESSION_ENDPOINT_SALT = null;
 const ALGORITHM = 'AES-CBC';
+
+/**
+ * Initialize session and obtain encryption key from server
+ */
+async function initializeSession() {
+  try {
+    const response = await fetch('/api/init-session', {
+      method: 'POST',
+      credentials: 'include' // Include cookies for session
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to initialize session');
+    }
+    
+    const data = await response.json();
+    SESSION_KEY = data.sessionKey;
+    SESSION_ENDPOINT_SALT = data.endpointSalt;
+    
+    console.log('✅ Session initialized securely');
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize session:', error);
+    return false;
+  }
+}
+
+/**
+ * Get the current session key (initialize if needed)
+ */
+async function getSessionKey() {
+  if (!SESSION_KEY) {
+    await initializeSession();
+  }
+  return SESSION_KEY;
+}
+
+/**
+ * Get the endpoint salt (initialize if needed)
+ */
+async function getEndpointSalt() {
+  if (!SESSION_ENDPOINT_SALT) {
+    await initializeSession();
+  }
+  return SESSION_ENDPOINT_SALT;
+}
 
 /**
  * Convert string to ArrayBuffer
@@ -73,7 +117,8 @@ async function deriveKey(secret) {
  * Generate a deterministic obfuscated endpoint path
  */
 async function obfuscateEndpoint(endpoint) {
-  const data = str2ab(endpoint + SECRET_KEY);
+  const salt = await getEndpointSalt();
+  const data = str2ab(endpoint + salt);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -85,7 +130,8 @@ async function obfuscateEndpoint(endpoint) {
  */
 async function encrypt(data) {
   const jsonString = JSON.stringify(data);
-  const key = await deriveKey(SECRET_KEY);
+  const sessionKey = await getSessionKey();
+  const key = await deriveKey(sessionKey);
   
   // Generate random IV
   const iv = crypto.getRandomValues(new Uint8Array(16));
@@ -112,7 +158,8 @@ async function decrypt(encryptedData) {
   
   const iv = base64ToArrayBuffer(ivBase64);
   const encrypted = base64ToArrayBuffer(encryptedBase64);
-  const key = await deriveKey(SECRET_KEY);
+  const sessionKey = await getSessionKey();
+  const key = await deriveKey(sessionKey);
   
   // Decrypt
   const decrypted = await crypto.subtle.decrypt(
@@ -130,9 +177,10 @@ async function decrypt(encryptedData) {
  */
 async function createSignature(data, timestamp) {
   const payload = JSON.stringify(data) + timestamp;
+  const sessionKey = await getSessionKey();
   const key = await crypto.subtle.importKey(
     'raw',
-    str2ab(SECRET_KEY),
+    str2ab(sessionKey),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']

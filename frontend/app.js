@@ -131,9 +131,19 @@ async function handleDeleteTodo(id) {
  */
 function renderTodos() {
   const container = document.getElementById('todos-container');
+  const countEl = document.getElementById('todos-count');
+  
+  // Update count
+  const completedCount = todos.filter(t => t.completed).length;
+  countEl.textContent = `${todos.length} task${todos.length !== 1 ? 's' : ''} (${completedCount} completed)`;
   
   if (todos.length === 0) {
-    container.innerHTML = '<p class="empty-state">No todos yet. Add one above!</p>';
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <p>No tasks yet. Add one above to get started!</p>
+      </div>
+    `;
     return;
   }
   
