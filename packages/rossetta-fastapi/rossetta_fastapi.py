@@ -231,10 +231,7 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Auto-encrypt responses for API endpoints (except init-session and non-API routes)
-        if (
-            request.url.path.startswith("/api/")
-            and request.url.path != "/api/init-session"
-        ):
+        if request.url.path.startswith("/") and request.url.path != "/api/init-session":
             # Check if response is already encrypted (has text/plain media type from manual encryption)
             content_type = response.headers.get("content-type", "")
             if not content_type.startswith("text/plain"):
