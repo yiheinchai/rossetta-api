@@ -1,0 +1,1 @@
+This is an overpowered todo list app with a frontend and backend that communicates with network requests that are completely obfusciated, that prevents people from inspect element and inspect netwrok request tab to reverse engineer the apis. this is a step to create a NPM package to the frontend and backend with minimal to none setup and get this network request obfusication.
