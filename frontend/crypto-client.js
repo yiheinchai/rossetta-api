@@ -1,9 +1,14 @@
 /**
  * Browser-compatible crypto utilities for obfuscated API communication
  * This is the client-side implementation that mirrors the server-side crypto
+ * 
+ * ⚠️ WARNING: This is a demonstration with a hardcoded key.
+ * In production, implement proper key exchange or derive keys server-side.
  */
 
 // Shared secret key - must match server
+// WARNING: Hardcoded keys in client-side JavaScript are visible to everyone!
+// This is for demonstration only. In production, use secure key management.
 const SECRET_KEY = 'rossetta-default-secret-key-change-me-32';
 const ALGORITHM = 'AES-CBC';
 

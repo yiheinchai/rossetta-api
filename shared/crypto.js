@@ -6,7 +6,14 @@
 import crypto from 'crypto';
 
 // Shared secret key - In production, this should be environment-specific
+// WARNING: This is a demonstration. NEVER use default keys in production!
+// Set ROSSETTA_SECRET_KEY environment variable before deploying.
 const SECRET_KEY = process.env.ROSSETTA_SECRET_KEY || 'rossetta-default-secret-key-change-me-32';
+
+if (!process.env.ROSSETTA_SECRET_KEY) {
+  console.warn('\n⚠️  WARNING: Using default secret key! Set ROSSETTA_SECRET_KEY environment variable in production.\n');
+}
+
 const ALGORITHM = 'aes-256-cbc';
 
 /**

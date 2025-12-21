@@ -137,21 +137,52 @@ function renderTodos() {
     return;
   }
   
-  container.innerHTML = todos.map(todo => `
-    <div class="todo-item ${todo.completed ? 'completed' : ''}">
-      <input 
-        type="checkbox" 
-        ${todo.completed ? 'checked' : ''} 
-        onchange="handleToggleTodo('${todo.id}')"
-        class="todo-checkbox"
-      >
-      <span class="todo-text">${escapeHtml(todo.text)}</span>
-      <div class="todo-actions">
-        <button onclick="handleEditTodo('${todo.id}')" class="btn-edit">Edit</button>
-        <button onclick="handleDeleteTodo('${todo.id}')" class="btn-delete">Delete</button>
-      </div>
-    </div>
-  `).join('');
+  // Clear container
+  container.innerHTML = '';
+  
+  // Create todo elements with proper event listeners
+  todos.forEach(todo => {
+    const todoEl = document.createElement('div');
+    todoEl.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+    
+    // Checkbox
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = todo.completed;
+    checkbox.className = 'todo-checkbox';
+    checkbox.addEventListener('change', () => handleToggleTodo(todo.id));
+    
+    // Text
+    const textEl = document.createElement('span');
+    textEl.className = 'todo-text';
+    textEl.textContent = todo.text;
+    
+    // Actions container
+    const actionsEl = document.createElement('div');
+    actionsEl.className = 'todo-actions';
+    
+    // Edit button
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.className = 'btn-edit';
+    editBtn.addEventListener('click', () => handleEditTodo(todo.id));
+    
+    // Delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.className = 'btn-delete';
+    deleteBtn.addEventListener('click', () => handleDeleteTodo(todo.id));
+    
+    // Assemble
+    actionsEl.appendChild(editBtn);
+    actionsEl.appendChild(deleteBtn);
+    
+    todoEl.appendChild(checkbox);
+    todoEl.appendChild(textEl);
+    todoEl.appendChild(actionsEl);
+    
+    container.appendChild(todoEl);
+  });
 }
 
 /**
@@ -171,15 +202,6 @@ function showError(message) {
   setTimeout(() => {
     errorEl.style.display = 'none';
   }, 5000);
-}
-
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 // Initialize app when DOM is ready

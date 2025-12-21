@@ -25,7 +25,10 @@ let todos = [
 ];
 
 // Middleware
-app.use(cors());
+// Note: In production, configure CORS with specific allowed origins
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*'
+}));
 app.use(express.json());
 app.use(express.text());
 
@@ -39,7 +42,11 @@ function decryptMiddleware(req, res, next) {
       const encryptedPayload = req.body;
       
       if (!encryptedPayload) {
-        return res.status(400).json({ error: 'No payload provided' });
+        const encryptedError = encryptResponse({ error: 'No payload provided' });
+        res.status(400);
+        res.setHeader('Content-Type', 'text/plain');
+        res.send(encryptedError);
+        return;
       }
 
       // Decrypt the payload
@@ -47,12 +54,20 @@ function decryptMiddleware(req, res, next) {
       
       // Verify timestamp to prevent replay attacks
       if (!isTimestampValid(decryptedPayload.timestamp)) {
-        return res.status(401).json({ error: 'Request expired' });
+        const encryptedError = encryptResponse({ error: 'Request expired' });
+        res.status(401);
+        res.setHeader('Content-Type', 'text/plain');
+        res.send(encryptedError);
+        return;
       }
 
       // Verify signature
       if (!verifySignature(decryptedPayload.data, decryptedPayload.timestamp, decryptedPayload.signature)) {
-        return res.status(401).json({ error: 'Invalid signature' });
+        const encryptedError = encryptResponse({ error: 'Invalid signature' });
+        res.status(401);
+        res.setHeader('Content-Type', 'text/plain');
+        res.send(encryptedError);
+        return;
       }
 
       // Attach decrypted data to request
@@ -61,7 +76,10 @@ function decryptMiddleware(req, res, next) {
     next();
   } catch (error) {
     console.error('Decryption error:', error.message);
-    res.status(400).json({ error: 'Invalid request format' });
+    const encryptedError = encryptResponse({ error: 'Invalid request format' });
+    res.status(400);
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(encryptedError);
   }
 }
 
