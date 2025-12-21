@@ -25,7 +25,7 @@ setup(
         "cryptography>=42.0.4",
     ],
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 4 - Beta",  # More mature than FastAPI package due to additional testing
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",

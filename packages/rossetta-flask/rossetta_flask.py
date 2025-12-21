@@ -23,6 +23,11 @@ from functools import wraps
 from typing import Optional, Dict, Any, Callable
 import os
 
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
 ALGORITHM = 'AES-CBC'
 DEFAULT_SECRET = os.getenv('ROSSETTA_SECRET_KEY', secrets.token_hex(32))
 TIMESTAMP_WINDOW = 5 * 60 * 1000  # 5 minutes in milliseconds
@@ -124,7 +129,7 @@ class RossettaFlask:
                     request.decrypted_data = decrypted_payload['data']
             
             except Exception as e:
-                print(f"Decryption error: {str(e)}")
+                logger.error(f"Decryption error: {type(e).__name__}")
                 error_response = self.encrypt({'error': 'Invalid request format'}, session_key)
                 return Response(error_response, status=400, mimetype='text/plain')
     
@@ -183,7 +188,12 @@ class RossettaFlask:
         Returns:
             Decrypted data as dictionary
         """
-        iv_b64, encrypted_b64 = encrypted_data.split(':')
+        # Split on first colon only to handle data that may contain colons
+        parts = encrypted_data.split(':', 1)
+        if len(parts) != 2:
+            raise ValueError("Invalid encrypted data format")
+        
+        iv_b64, encrypted_b64 = parts
         iv = b64decode(iv_b64)
         encrypted = b64decode(encrypted_b64)
         
@@ -194,8 +204,25 @@ class RossettaFlask:
         
         decrypted = decryptor.update(encrypted) + decryptor.finalize()
         
-        # Remove padding
+        # Validate and remove padding
+        if len(decrypted) == 0:
+            raise ValueError("Decrypted data is empty")
+        
         padding_length = decrypted[-1]
+        
+        # Validate padding length (must be 1-16 for AES block size)
+        if padding_length < 1 or padding_length > 16:
+            raise ValueError("Invalid padding length")
+        
+        # Validate padding bytes
+        if len(decrypted) < padding_length:
+            raise ValueError("Invalid padding")
+        
+        # Verify all padding bytes are correct
+        for i in range(padding_length):
+            if decrypted[-(i+1)] != padding_length:
+                raise ValueError("Invalid padding bytes")
+        
         decrypted = decrypted[:-padding_length]
         
         json_string = decrypted.decode()
