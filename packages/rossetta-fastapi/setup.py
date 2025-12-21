@@ -20,7 +20,6 @@ setup(
         "Source Code": "https://github.com/yiheinchai/rossetta-api/tree/main/packages/rossetta-fastapi",
     },
     py_modules=["rossetta_fastapi"],
-    package_data={"": ["py.typed"]},
     install_requires=[
         "fastapi>=0.100.0",
         "cryptography>=41.0.0",

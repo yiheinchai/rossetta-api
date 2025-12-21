@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction, RequestHandler } from 'express';
-import { SessionOptions } from 'express-session';
 
 /**
  * Rossetta-specific data attached to the request object
@@ -52,13 +51,6 @@ declare global {
        * Rossetta-specific data and methods
        */
       rossetta?: RossettaData;
-
-      /**
-       * Obfuscate an endpoint path
-       * @param endpointName - Original endpoint path
-       * @returns Obfuscated endpoint path
-       */
-      obfuscateEndpoint?(endpointName: string): string;
     }
 
     interface Response {

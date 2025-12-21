@@ -5,10 +5,9 @@
 
 /**
  * Options for configuring the RossettaClient
+ * Currently empty but reserved for future configuration options
  */
-export interface RossettaClientOptions {
-  // Future extension options
-}
+export interface RossettaClientOptions {}
 
 /**
  * RossettaClient class for making obfuscated API requests
