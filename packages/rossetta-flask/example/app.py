@@ -119,6 +119,11 @@ if __name__ == '__main__':
     print(f"Server running at: http://localhost:5000")
     print(f"Session init endpoint: http://localhost:5000/api/init-session")
     print("=" * 60)
+    print("\n⚠️  Running in development mode - do NOT use in production!")
+    print("For production, use a production WSGI server like gunicorn:")
+    print("  gunicorn -w 4 -b 0.0.0.0:5000 app:app")
+    print("=" * 60)
     
-    # Development server
+    # Development server (debug=True for development only)
+    # In production, use a production WSGI server like gunicorn or uwsgi
     app.run(debug=True, host='0.0.0.0', port=5000)
