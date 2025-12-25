@@ -1,0 +1,12 @@
+{
+  "name": "rosetta-client-example",
+  "version": "1.0.0",
+  "description": "Example usage of rosetta-client",
+  "main": "client.js",
+  "scripts": {
+    "start": "node client.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}

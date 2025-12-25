@@ -3,6 +3,12 @@
  * Uses Web Crypto API (available in browsers and Node.js 15+)
  */
 
+// Polyfill for Node.js environment
+const cryptoGlobal = typeof crypto !== 'undefined' ? crypto : 
+  (typeof globalThis !== 'undefined' && (globalThis as any).crypto) || 
+  (typeof global !== 'undefined' && (global as any).crypto) ||
+  require('crypto').webcrypto;
+
 export interface EncryptedPayload {
   ciphertext: string;
   nonce: string;
@@ -15,7 +21,7 @@ export interface EncryptedPayload {
  */
 export function generateNonce(): string {
   const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
+  cryptoGlobal.getRandomValues(array);
   return arrayBufferToBase64(array.buffer);
 }
 
@@ -23,7 +29,7 @@ export function generateNonce(): string {
  * Generate ECDH key pair for key exchange
  */
 export async function generateKeyPair(): Promise<CryptoKeyPair> {
-  return await crypto.subtle.generateKey(
+  return await cryptoGlobal.subtle.generateKey(
     {
       name: 'ECDH',
       namedCurve: 'P-256',
@@ -37,7 +43,7 @@ export async function generateKeyPair(): Promise<CryptoKeyPair> {
  * Export public key to base64 string
  */
 export async function exportPublicKey(publicKey: CryptoKey): Promise<string> {
-  const exported = await crypto.subtle.exportKey('spki', publicKey);
+  const exported = await cryptoGlobal.subtle.exportKey('spki', publicKey);
   return arrayBufferToBase64(exported);
 }
 
@@ -46,7 +52,7 @@ export async function exportPublicKey(publicKey: CryptoKey): Promise<string> {
  */
 export async function importPublicKey(base64Key: string): Promise<CryptoKey> {
   const keyData = base64ToArrayBuffer(base64Key);
-  return await crypto.subtle.importKey(
+  return await cryptoGlobal.subtle.importKey(
     'spki',
     keyData,
     {
@@ -65,7 +71,7 @@ export async function deriveSharedKey(
   privateKey: CryptoKey,
   publicKey: CryptoKey
 ): Promise<CryptoKey> {
-  return await crypto.subtle.deriveKey(
+  return await cryptoGlobal.subtle.deriveKey(
     {
       name: 'ECDH',
       public: publicKey,
@@ -91,7 +97,7 @@ export async function encrypt(
   const encoder = new TextEncoder();
   const encoded = encoder.encode(data);
   
-  return await crypto.subtle.encrypt(
+  return await cryptoGlobal.subtle.encrypt(
     {
       name: 'AES-GCM',
       iv: iv as BufferSource,
@@ -109,7 +115,7 @@ export async function decrypt(
   key: CryptoKey,
   iv: Uint8Array
 ): Promise<string> {
-  const decrypted = await crypto.subtle.decrypt(
+  const decrypted = await cryptoGlobal.subtle.decrypt(
     {
       name: 'AES-GCM',
       iv: iv as BufferSource,

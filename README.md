@@ -2,6 +2,8 @@
 
 End-to-end encryption for API requests - preventing interception, modification, and replay attacks.
 
+**Status**: Production-ready FastAPI middleware with full test coverage. JavaScript/TypeScript client available (cross-platform encryption compatibility in progress).
+
 ## Overview
 
 Rosetta API provides seamless e2e encryption for API communication between clients and servers. It prevents:
@@ -60,6 +62,42 @@ npm install rosetta-client
 ```bash
 pip install rosetta-fastapi
 ```
+
+## Quick Start
+
+### Server Setup (FastAPI)
+
+```python
+from fastapi import FastAPI
+from rosetta_fastapi import RosettaMiddleware
+
+app = FastAPI()
+
+# Add the middleware - that's it!
+app.add_middleware(RosettaMiddleware, secret_key="your-secret-key-here")
+
+@app.get("/api/data")
+def get_data():
+    return {"message": "This response is encrypted"}
+```
+
+### Client Setup (JavaScript/TypeScript)
+
+```javascript
+import { fetch } from 'rosetta-client';
+
+// Use exactly like regular fetch - encryption is automatic!
+const response = await fetch('https://api.example.com/data', {
+  method: 'POST',
+  body: JSON.stringify({ key: 'value' })
+});
+
+const data = await response.json();
+```
+
+### Client Setup (Python - for testing)
+
+See `examples/python-client/` for a working Python client example using the same cryptographic library.
 
 ## How it Works
 
