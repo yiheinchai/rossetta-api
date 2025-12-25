@@ -5,6 +5,8 @@ Tests for Rosetta FastAPI middleware
 import pytest
 import json
 import base64
+import time
+import os
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from rosetta_fastapi import RosettaMiddleware
@@ -102,6 +104,9 @@ def test_encrypted_request_response(client):
     decrypted_response = CryptoManager.decrypt(response_ciphertext, shared_key, response_iv)
     response_data = json.loads(decrypted_response)
     
+    # The response_data contains body, status, statusText, headers
+    # The body should be the actual response from the endpoint
+    assert "body" in response_data
     assert response_data["body"]["message"] == "Hello, World!"
 
 

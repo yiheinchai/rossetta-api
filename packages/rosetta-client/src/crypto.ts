@@ -94,7 +94,7 @@ export async function encrypt(
   return await crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
-      iv: iv,
+      iv: iv as BufferSource,
     },
     key,
     encoded
@@ -112,7 +112,7 @@ export async function decrypt(
   const decrypted = await crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
-      iv: iv,
+      iv: iv as BufferSource,
     },
     key,
     ciphertext

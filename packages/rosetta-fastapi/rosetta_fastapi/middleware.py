@@ -111,22 +111,49 @@ class RosettaMiddleware(BaseHTTPMiddleware):
                     status_code=401
                 )
             
-            # Create a new request with decrypted data
-            modified_request = await self._create_modified_request(request, decrypted)
+            # Create a new ASGI scope with decrypted data
+            new_scope = await self._create_modified_scope(request, decrypted)
             
-            # Process the request through the application
-            response = await call_next(modified_request)
+            # Create a response holder
+            response_started = False
+            response_status = 200
+            response_headers = []
+            response_body = []
             
-            # Read response body
-            response_body = b""
-            async for chunk in response.body_iterator:
-                response_body += chunk
+            async def send(message):
+                nonlocal response_started, response_status, response_headers, response_body
+                if message["type"] == "http.response.start":
+                    response_started = True
+                    response_status = message["status"]
+                    response_headers = message.get("headers", [])
+                elif message["type"] == "http.response.body":
+                    response_body.append(message.get("body", b""))
+            
+            # Create receive function for body
+            body_sent = False
+            async def receive():
+                nonlocal body_sent
+                if not body_sent:
+                    body_sent = True
+                    body_data = decrypted.get("body")
+                    if body_data:
+                        if isinstance(body_data, str):
+                            return {"type": "http.request", "body": body_data.encode()}
+                        else:
+                            return {"type": "http.request", "body": json.dumps(body_data).encode()}
+                return {"type": "http.request", "body": b""}
+            
+            # Call the app directly
+            await self.app(new_scope, receive, send)
+            
+            # Combine response body
+            full_response_body = b"".join(response_body)
             
             # Encrypt response
             encrypted_response = await self._encrypt_response(
-                response_body.decode('utf-8'),
-                response.status_code,
-                dict(response.headers)
+                full_response_body.decode('utf-8') if full_response_body else "{}",
+                response_status,
+                {k.decode(): v.decode() for k, v in response_headers}
             )
             
             return JSONResponse(
@@ -231,19 +258,15 @@ class RosettaMiddleware(BaseHTTPMiddleware):
             self.used_nonces.discard(nonce)
             self.nonce_timestamps.pop(nonce, None)
     
-    async def _create_modified_request(
+    async def _create_modified_scope(
         self,
         original_request: Request,
         decrypted: dict
-    ) -> Request:
-        """Create a new request object with decrypted data"""
-        from starlette.requests import Request as StarletteRequest
-        from starlette.datastructures import Headers
-        
+    ) -> dict:
+        """Create a new ASGI scope with decrypted data"""
         # Extract request details
         method = decrypted.get("method", "GET")
         headers_dict = decrypted.get("headers", {})
-        body = decrypted.get("body")
         
         # Convert headers to proper format
         headers_list = []
@@ -255,6 +278,7 @@ class RosettaMiddleware(BaseHTTPMiddleware):
                 headers_list.append((key.lower().encode(), str(value).encode()))
         
         # Add content-type if body exists
+        body = decrypted.get("body")
         if body and not any(h[0] == b'content-type' for h in headers_list):
             headers_list.append((b'content-type', b'application/json'))
         
@@ -263,14 +287,4 @@ class RosettaMiddleware(BaseHTTPMiddleware):
         scope["method"] = method
         scope["headers"] = headers_list
         
-        # Create receive function for body
-        async def receive():
-            if body:
-                if isinstance(body, str):
-                    return {"type": "http.request", "body": body.encode()}
-                else:
-                    return {"type": "http.request", "body": json.dumps(body).encode()}
-            return {"type": "http.request", "body": b""}
-        
-        # Create new request
-        return StarletteRequest(scope, receive)
+        return scope
