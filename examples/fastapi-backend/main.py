@@ -7,11 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Import rossetta middleware
-import sys
-sys.path.insert(0, '/home/runner/work/rossetta-api/rossetta-api/packages/rossetta-fastapi')
 from rossetta_fastapi import RossettaMiddleware
 
 app = FastAPI(title="Rossetta API Example")
+
+# Add Rossetta middleware - single line for e2e encryption!
+# Note: Add this BEFORE CORS to ensure proper request processing
+app.add_middleware(RossettaMiddleware)
 
 # Add CORS middleware for browser access
 app.add_middleware(
@@ -21,9 +23,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add Rossetta middleware - single line for e2e encryption!
-app.add_middleware(RossettaMiddleware)
 
 
 class Message(BaseModel):
@@ -72,7 +71,7 @@ async def submit_data(item: DataItem):
     return {
         "success": True,
         "received": item.model_dump(),
-        "message": "Data received and processed securely"
+        "message": "Data received and processed securely",
     }
 
 
@@ -82,10 +81,11 @@ async def get_user(user_id: int):
     return {
         "id": user_id,
         "username": f"user_{user_id}",
-        "email": f"user{user_id}@example.com"
+        "email": f"user{user_id}@example.com",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

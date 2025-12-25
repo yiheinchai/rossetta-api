@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rossetta-fastapi"
-version = "1.0.0"
+version = "0.1.5"
 description = "End-to-end encryption middleware for FastAPI"
 readme = "README.md"
 requires-python = ">=3.8"
