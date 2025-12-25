@@ -38,7 +38,6 @@ package-lock.json
 yarn.lock
 .pnpm-debug.log*
 dist/
-build/
 *.tsbuildinfo
 
 # IDE
@@ -54,3 +53,9 @@ tmp/
 temp/
 *.tmp
 *.log
+
+# Build artifacts (keep dist for publishing verification)
+# Uncomment these before committing final code:
+# packages/*/dist/
+# packages/*/*.egg-info/
+# packages/*/build/
