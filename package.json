@@ -1,0 +1,23 @@
+{
+  "name": "rosetta-api-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "End-to-end encryption for API requests",
+  "workspaces": [
+    "packages/rosetta-client",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "clean": "rm -rf packages/*/lib packages/*/dist packages/*/node_modules"
+  },
+  "keywords": [
+    "encryption",
+    "api",
+    "e2e",
+    "security"
+  ],
+  "author": "",
+  "license": "MIT"
+}

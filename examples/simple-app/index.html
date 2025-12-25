@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rosetta Client Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #output {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rosetta Client Demo</h1>
+    <p>This demo shows end-to-end encrypted API requests. Check the Network tab in DevTools - all request/response bodies are encrypted!</p>
+    
+    <div>
+        <button onclick="testGetData()">GET /api/data</button>
+        <button onclick="testPostEcho()">POST /api/echo</button>
+        <button onclick="testGetUser()">GET /api/user/123</button>
+        <button onclick="testReplayAttack()">Test Replay Attack</button>
+    </div>
+    
+    <div id="output"></div>
+    
+    <!-- We'll use a bundled version in production, but for demo use module type -->
+    <script type="module">
+        // In a real app, this would be: import { fetch } from 'rosetta-client';
+        // For this demo, we'll implement a simple version
+        
+        const output = document.getElementById('output');
+        
+        function log(message, isError = false) {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : 'success';
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        // Simple crypto utilities for demo
+        async function generateKeyPair() {
+            return await crypto.subtle.generateKey(
+                { name: 'ECDH', namedCurve: 'P-256' },
+                true,
+                ['deriveKey']
+            );
+        }
+        
+        async function exportPublicKey(publicKey) {
+            const exported = await crypto.subtle.exportKey('spki', publicKey);
+            return btoa(String.fromCharCode(...new Uint8Array(exported)));
+        }
+        
+        async function importPublicKey(base64Key) {
+            const binary = atob(base64Key);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return await crypto.subtle.importKey(
+                'spki',
+                bytes.buffer,
+                { name: 'ECDH', namedCurve: 'P-256' },
+                true,
+                []
+            );
+        }
+        
+        async function deriveSharedKey(privateKey, publicKey) {
+            return await crypto.subtle.deriveKey(
+                { name: 'ECDH', public: publicKey },
+                privateKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+        
+        let sharedKey = null;
+        
+        async function initKeyExchange() {
+            log('Initiating key exchange...');
+            const keyPair = await generateKeyPair();
+            const clientPublicKey = await exportPublicKey(keyPair.publicKey);
+            
+            const response = await fetch('http://localhost:8000/__rosetta__/key-exchange', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientPublicKey })
+            });
+            
+            const { serverPublicKey } = await response.json();
+            const serverKey = await importPublicKey(serverPublicKey);
+            sharedKey = await deriveSharedKey(keyPair.privateKey, serverKey);
+            
+            log('Key exchange successful!');
+        }
+        
+        async function encryptedFetch(url, options = {}) {
+            if (!sharedKey) {
+                await initKeyExchange();
+            }
+            
+            const payload = {
+                url,
+                method: options.method || 'GET',
+                headers: options.headers || {},
+                body: options.body ? JSON.parse(options.body) : null,
+                timestamp: Date.now(),
+                nonce: btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))))
+            };
+            
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encoder = new TextEncoder();
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                sharedKey,
+                encoder.encode(JSON.stringify(payload))
+            );
+            
+            const encryptedPayload = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+            const ivBase64 = btoa(String.fromCharCode(...iv));
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Rosetta-Encrypted': 'true'
+                },
+                body: JSON.stringify({ encryptedPayload, iv: ivBase64 })
+            });
+            
+            const encryptedResponse = await response.json();
+            
+            const responseCiphertext = atob(encryptedResponse.encryptedPayload);
+            const responseBytes = new Uint8Array(responseCiphertext.length);
+            for (let i = 0; i < responseCiphertext.length; i++) {
+                responseBytes[i] = responseCiphertext.charCodeAt(i);
+            }
+            
+            const responseIv = atob(encryptedResponse.iv);
+            const responseIvBytes = new Uint8Array(responseIv.length);
+            for (let i = 0; i < responseIv.length; i++) {
+                responseIvBytes[i] = responseIv.charCodeAt(i);
+            }
+            
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: responseIvBytes },
+                sharedKey,
+                responseBytes
+            );
+            
+            const decoder = new TextDecoder();
+            return JSON.parse(decoder.decode(decrypted));
+        }
+        
+        window.testGetData = async function() {
+            try {
+                log('Testing GET /api/data...');
+                const result = await encryptedFetch('http://localhost:8000/api/data');
+                log(`Response: ${JSON.stringify(result.body, null, 2)}`);
+            } catch (error) {
+                log(`Error: ${error.message}`, true);
+            }
+        };
+        
+        window.testPostEcho = async function() {
+            try {
+                log('Testing POST /api/echo...');
+                const result = await encryptedFetch('http://localhost:8000/api/echo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test: 'Hello, encrypted world!' })
+                });
+                log(`Response: ${JSON.stringify(result.body, null, 2)}`);
+            } catch (error) {
+                log(`Error: ${error.message}`, true);
+            }
+        };
+        
+        window.testGetUser = async function() {
+            try {
+                log('Testing GET /api/user/123...');
+                const result = await encryptedFetch('http://localhost:8000/api/user/123');
+                log(`Response: ${JSON.stringify(result.body, null, 2)}`);
+            } catch (error) {
+                log(`Error: ${error.message}`, true);
+            }
+        };
+        
+        let lastRequest = null;
+        window.testReplayAttack = async function() {
+            try {
+                log('Testing replay attack prevention...');
+                log('This should fail as the same request cannot be sent twice');
+                // This would require capturing and replaying a request
+                // In the DevTools Network tab, you can copy a request and try to replay it
+                log('Try copying a request from the Network tab and running it with curl/Postman - it should fail!');
+            } catch (error) {
+                log(`Error: ${error.message}`, true);
+            }
+        };
+        
+        log('Ready! Click buttons to test encrypted API calls.');
+    </script>
+</body>
+</html>
