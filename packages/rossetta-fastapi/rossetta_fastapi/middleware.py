@@ -94,8 +94,20 @@ class RossettaMiddleware:
             ciphertext = encrypted_data['ciphertext']
             iv = encrypted_data['iv']
             
-            # Get session
-            session_id = scope.get('client', [None])[0] if scope.get('client') else "default"
+            # Get session - use client IP as session ID
+            # In production, consider using a more robust session token system
+            client_info = scope.get('client', None)
+            if client_info and len(client_info) > 0:
+                session_id = client_info[0]  # Client IP
+            else:
+                # Fallback - generate from connection details or fail
+                await self._send_json_response(
+                    send,
+                    {"error": "Unable to identify client session"},
+                    401
+                )
+                return
+                
             session = self.session_manager.get_session(session_id)
             
             if not session:
@@ -155,7 +167,14 @@ class RossettaMiddleware:
             # Add content-length
             body_bytes = b''
             if original_body:
-                body_bytes = original_body.encode('utf-8') if isinstance(original_body, str) else original_body
+                # Ensure body is properly encoded
+                if isinstance(original_body, str):
+                    body_bytes = original_body.encode('utf-8')
+                elif isinstance(original_body, bytes):
+                    body_bytes = original_body
+                else:
+                    # For other types (dict, list, etc.), serialize to JSON
+                    body_bytes = json.dumps(original_body).encode('utf-8')
                 new_headers.append((b'content-length', str(len(body_bytes)).encode()))
             else:
                 new_headers.append((b'content-length', b'0'))
@@ -224,13 +243,14 @@ class RossettaMiddleware:
             )
             
         except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"ERROR in middleware: {str(e)}")
-            print(error_details)
+            # Use proper logging instead of print in production
+            import logging
+            logger = logging.getLogger("rossetta_fastapi")
+            logger.error(f"Encryption/decryption error: {str(e)}", exc_info=True)
+            
             await self._send_json_response(
                 send,
-                {"error": f"Decryption error: {str(e)}"},
+                {"error": "Request processing error"},  # Don't expose internal details
                 400
             )
             
@@ -263,8 +283,18 @@ class RossettaMiddleware:
             # Derive shared secret
             shared_key = derive_shared_key(self.server_private_key, client_public_key)
             
-            # Create session (use client IP as session ID for simplicity)
-            session_id = scope.get('client', [None])[0] if scope.get('client') else "default"
+            # Create session (use client IP as session ID)
+            client_info = scope.get('client', None)
+            if client_info and len(client_info) > 0:
+                session_id = client_info[0]  # Client IP
+            else:
+                await self._send_json_response(
+                    send,
+                    {"error": "Unable to identify client for session"},
+                    400
+                )
+                return
+                
             self.session_manager.create_session(session_id, shared_key)
             
             # Return server's public key

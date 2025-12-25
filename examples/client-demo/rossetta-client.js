@@ -200,14 +200,24 @@ async function rossettaFetch(input, init) {
       headers.forEach((value, key) => {
         headersObj[key] = value;
       });
-    } else {
+    } else if (headers) {
       headersObj = headers;
+    }
+    let bodyStr = null;
+    if (body) {
+      if (typeof body === "string") {
+        bodyStr = body;
+      } else if (body instanceof FormData || body instanceof Blob || body instanceof ArrayBuffer) {
+        throw new Error("FormData, Blob, and ArrayBuffer are not yet supported. Use JSON or string body.");
+      } else {
+        bodyStr = JSON.stringify(body);
+      }
     }
     const payload = {
       method,
       url,
       headers: headersObj,
-      body: body ? typeof body === "string" ? body : JSON.stringify(body) : null,
+      body: bodyStr,
       timestamp,
       nonce
     };

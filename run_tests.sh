@@ -73,10 +73,10 @@ run_test "E2E GET Request" "node test_e2e.js 2>&1 | grep -q 'All 5 tests passed'
 run_test "Replay Attack Prevention" "node test_replay.js 2>&1 | grep -q 'SUCCESS'"
 
 # Test plain API still works
-run_test "Non-encrypted Endpoint" "curl -s http://localhost:8000/ | grep -q 'Welcome'"
+run_test "Non-encrypted Endpoint" "curl -s --max-time 5 http://localhost:8000/ | grep -q 'Welcome'"
 
 # Test handshake endpoint exists
-run_test "Handshake Endpoint" "curl -s -X POST http://localhost:8000/__rossetta_handshake__ -H 'Content-Type: application/json' -d '{\"client_public_key\":\"test\"}' | grep -q 'error'"
+run_test "Handshake Endpoint" "curl -s --max-time 5 -X POST http://localhost:8000/__rossetta_handshake__ -H 'Content-Type: application/json' -d '{\"client_public_key\":\"test\"}' | grep -q 'error'"
 
 echo ""
 echo "==========================================="

@@ -56,15 +56,30 @@ async function rossettaFetch(
       headers.forEach((value, key) => {
         headersObj[key] = value;
       });
-    } else {
+    } else if (headers) {
       headersObj = headers as Record<string, string>;
+    }
+
+    // Serialize body - handle different body types
+    let bodyStr: string | null = null;
+    if (body) {
+      if (typeof body === 'string') {
+        bodyStr = body;
+      } else if (body instanceof FormData || body instanceof Blob || body instanceof ArrayBuffer) {
+        // For binary/form data, we need to convert to a format that can be encrypted
+        // This is a limitation - complex body types need special handling
+        throw new Error('FormData, Blob, and ArrayBuffer are not yet supported. Use JSON or string body.');
+      } else {
+        // Assume it's a JSON-serializable object
+        bodyStr = JSON.stringify(body);
+      }
     }
 
     const payload = {
       method,
       url,
       headers: headersObj,
-      body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : null,
+      body: bodyStr,
       timestamp,
       nonce,
     };
