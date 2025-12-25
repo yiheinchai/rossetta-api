@@ -72,8 +72,18 @@ class RossettaMiddleware(BaseHTTPMiddleware):
         if content_type == "application/vnd.rossetta.encrypted+json":
             # Handle encrypted request
             try:
-                # Read request body
-                body = await request.body()
+                # Read request body using receive directly to avoid caching
+                body_parts = []
+                while True:
+                    message = await request.receive()
+                    if message['type'] == 'http.request':
+                        body_parts.append(message.get('body', b''))
+                        if not message.get('more_body', False):
+                            break
+                    elif message['type'] == 'http.disconnect':
+                        break
+                
+                body = b''.join(body_parts)
                 encrypted_payload = json.loads(body.decode('utf-8'))
                 
                 # Validate timestamp
@@ -136,25 +146,35 @@ class RossettaMiddleware(BaseHTTPMiddleware):
                         headers_dict[key.lower()] = value
                     # Set content-type to application/json for the backend
                     headers_dict["content-type"] = "application/json"
-                    # Convert back to list format
-                    request.scope["headers"] = [(k.encode(), v.encode()) for k, v in headers_dict.items()]
                 else:
                     # Just update content-type
                     headers_dict = {}
                     for name, value in request.scope["headers"]:
                         headers_dict[name.decode() if isinstance(name, bytes) else name] = value.decode() if isinstance(value, bytes) else value
                     headers_dict["content-type"] = "application/json"
-                    request.scope["headers"] = [(k.encode(), v.encode()) for k, v in headers_dict.items()]
                 
                 # Update body
-                if "body" in decrypted_data:
+                if "body" in decrypted_data and decrypted_data["body"] is not None:
                     body_data = json.dumps(decrypted_data["body"]).encode('utf-8')
-                    
-                    # Create new receive function with decrypted body
-                    async def receive():
-                        return {"type": "http.request", "body": body_data}
-                    
-                    request._receive = receive
+                else:
+                    body_data = b""
+                
+                # Update content-length
+                headers_dict["content-length"] = str(len(body_data))
+                
+                # Convert headers back to list format
+                request.scope["headers"] = [(k.encode(), v.encode()) for k, v in headers_dict.items()]
+                
+                # Create new receive function with decrypted body
+                body_sent = False
+                async def receive():
+                    nonlocal body_sent
+                    if not body_sent:
+                        body_sent = True
+                        return {"type": "http.request", "body": body_data, "more_body": False}
+                    return {"type": "http.disconnect"}
+                
+                request._receive = receive
                 
                 # Process request
                 response = await call_next(request)
