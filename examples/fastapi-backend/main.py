@@ -71,7 +71,7 @@ async def submit_data(item: DataItem):
     """POST endpoint for submitting data"""
     return {
         "success": True,
-        "received": item.dict(),
+        "received": item.model_dump(),
         "message": "Data received and processed securely"
     }
 

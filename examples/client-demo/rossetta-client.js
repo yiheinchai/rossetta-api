@@ -27,12 +27,29 @@ async function importPublicKey(base64Key) {
   );
 }
 async function deriveSharedSecret(privateKey, publicKey) {
-  return await crypto.subtle.deriveKey(
+  const sharedSecret = await crypto.subtle.deriveBits(
     {
       name: "ECDH",
       public: publicKey
     },
     privateKey,
+    256
+  );
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    sharedSecret,
+    "HKDF",
+    false,
+    ["deriveKey"]
+  );
+  return await crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array([]),
+      info: new TextEncoder().encode("rossetta-api")
+    },
+    hkdfKey,
     {
       name: "AES-GCM",
       length: 256

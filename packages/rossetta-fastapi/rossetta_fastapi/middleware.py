@@ -10,7 +10,7 @@ from typing import Callable
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Scope, Receive, Send
 
 from .crypto import (
     generate_keypair,
@@ -23,7 +23,7 @@ from .crypto import (
 from .session import SessionManager
 
 
-class RossettaMiddleware(BaseHTTPMiddleware):
+class RossettaMiddleware:
     """
     FastAPI middleware for end-to-end encryption
     
@@ -45,145 +45,217 @@ class RossettaMiddleware(BaseHTTPMiddleware):
             session_duration: Session duration in seconds (default: 1 hour)
             max_timestamp_drift: Max allowed timestamp drift in seconds (default: 5 minutes)
         """
-        super().__init__(app)
+        self.app = app
         self.server_private_key, self.server_public_key = generate_keypair()
         self.session_manager = SessionManager(session_duration)
         self.max_timestamp_drift = max_timestamp_drift
         
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """Process request with encryption/decryption"""
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """ASGI application interface"""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+            
+        # Handle handshake and encrypted requests
+        await self.handle_http(scope, receive, send)
+        
+    async def handle_http(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Handle HTTP requests"""
+        from starlette.requests import Request
+        from starlette.datastructures import Headers
+        
+        # Create request object
+        request = Request(scope, receive)
+        path = scope.get("path", "")
         
         # Handle key exchange handshake
-        if request.url.path == "/__rossetta_handshake__":
-            return await self._handle_handshake(request)
+        if path == "/__rossetta_handshake__":
+            await self._handle_handshake_asgi(scope, receive, send)
+            return
             
         # Check if request is encrypted
-        if request.headers.get("X-Rossetta-Encrypted") != "true":
+        headers = Headers(scope=scope)
+        if headers.get("X-Rossetta-Encrypted") != "true":
             # Pass through non-encrypted requests
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
             
         try:
-            # Decrypt request
-            body = await request.body()
-            encrypted_data = json.loads(body.decode('utf-8'))
+            # Read the encrypted body
+            body = bytearray()
+            while True:
+                message = await receive()
+                if message['type'] == 'http.request':
+                    body.extend(message.get('body', b''))
+                    if not message.get('more_body', False):
+                        break
             
-            # Get session key (use client's public key hash as session ID)
+            encrypted_data = json.loads(body.decode('utf-8'))
             ciphertext = encrypted_data['ciphertext']
             iv = encrypted_data['iv']
             
-            # We need to decrypt to get the session info
-            # For now, use a simple session based on client IP or create session during handshake
-            # This is a simplified approach - in production, use proper session tokens
-            session_id = request.client.host if request.client else "default"
+            # Get session
+            session_id = scope.get('client', [None])[0] if scope.get('client') else "default"
             session = self.session_manager.get_session(session_id)
             
             if not session:
-                return JSONResponse(
-                    content={"error": "No valid session. Please establish handshake first."},
-                    status_code=401
+                await self._send_json_response(
+                    send,
+                    {"error": "No valid session. Please establish handshake first."},
+                    401
                 )
+                return
                 
             # Decrypt request payload
             decrypted = decrypt(session.shared_key, ciphertext, iv)
             payload = json.loads(decrypted)
             
-            # Validate timestamp to prevent replay attacks
+            # Validate timestamp
             timestamp = payload.get('timestamp', 0)
-            current_time = time.time() * 1000  # Convert to milliseconds
+            current_time = time.time() * 1000
             if abs(current_time - timestamp) > (self.max_timestamp_drift * 1000):
-                return JSONResponse(
-                    content={"error": "Request timestamp out of allowed range"},
-                    status_code=400
+                await self._send_json_response(
+                    send,
+                    {"error": "Request timestamp out of allowed range"},
+                    400
                 )
+                return
                 
             # Validate nonce
             nonce = payload.get('nonce')
             if not nonce or not self.session_manager.validate_nonce(nonce):
-                return JSONResponse(
-                    content={"error": "Invalid or duplicate nonce"},
-                    status_code=400
+                await self._send_json_response(
+                    send,
+                    {"error": "Invalid or duplicate nonce"},
+                    400
                 )
+                return
             
             # Reconstruct the original request
             original_method = payload.get('method', 'GET')
             original_headers = payload.get('headers', {})
             original_body = payload.get('body')
             
-            # Create new request scope with decrypted data
-            scope = request.scope.copy()
+            # Modify scope
             scope['method'] = original_method
             
-            # Update headers
+            # Rebuild headers
+            new_headers = []
+            for key, value in scope.get('headers', []):
+                header_name = key.decode('utf-8').lower()
+                if header_name not in ['x-rossetta-encrypted', 'content-length']:
+                    new_headers.append((key, value))
+            
+            # Add original headers
             if original_headers:
                 for key, value in original_headers.items():
-                    if key.lower() not in ['x-rossetta-encrypted', 'content-length']:
-                        scope['headers'] = [
-                            (k, v) for k, v in scope['headers']
-                            if k.decode('utf-8').lower() != key.lower()
-                        ]
-                        scope['headers'].append((key.encode(), str(value).encode()))
+                    if key.lower() not in ['x-rossetta-encrypted']:
+                        new_headers.append((key.lower().encode(), str(value).encode()))
             
-            # Create modified request
-            from starlette.requests import Request as StarletteRequest
-            modified_request = StarletteRequest(scope, request.receive)
-            
-            # If there's a body, we need to handle it
+            # Add content-length
+            body_bytes = b''
             if original_body:
-                # Store the body for later retrieval
-                modified_request._body = original_body.encode('utf-8') if isinstance(original_body, str) else original_body
-                
-            # Process request through the app
-            response = await call_next(modified_request)
+                body_bytes = original_body.encode('utf-8') if isinstance(original_body, str) else original_body
+                new_headers.append((b'content-length', str(len(body_bytes)).encode()))
+            else:
+                new_headers.append((b'content-length', b'0'))
             
-            # Read response body
-            response_body = b""
-            async for chunk in response.body_iterator:
-                response_body += chunk
+            scope['headers'] = new_headers
+            
+            # Create receive function for the decrypted body
+            body_sent = False
+            
+            async def receive_modified():
+                nonlocal body_sent
+                if not body_sent:
+                    body_sent = True
+                    return {
+                        'type': 'http.request',
+                        'body': body_bytes,
+                        'more_body': False,
+                    }
+                return {
+                    'type': 'http.request',
+                    'body': b'',
+                    'more_body': False,
+                }
+            
+            # Create send function to capture response
+            response_started = False
+            response_status = 200
+            response_headers = []
+            response_body = bytearray()
+            
+            async def send_capture(message):
+                nonlocal response_started, response_status, response_headers, response_body
                 
-            # Try to parse as JSON, otherwise use as string
+                if message['type'] == 'http.response.start':
+                    response_started = True
+                    response_status = message['status']
+                    response_headers = message.get('headers', [])
+                elif message['type'] == 'http.response.body':
+                    response_body.extend(message.get('body', b''))
+            
+            # Call the app with modified scope and receive
+            await self.app(scope, receive_modified, send_capture)
+            
+            # Encrypt and send response
             try:
                 response_data = json.loads(response_body.decode('utf-8'))
             except:
                 response_data = response_body.decode('utf-8')
             
-            # Encrypt response
             response_payload = {
-                'status': response.status_code,
-                'statusText': 'OK' if response.status_code == 200 else 'Error',
-                'headers': dict(response.headers),
+                'status': response_status,
+                'statusText': 'OK' if response_status == 200 else 'Error',
+                'headers': {k.decode('utf-8'): v.decode('utf-8') for k, v in response_headers},
                 'body': response_data,
             }
             
-            encrypted_response = encrypt(
-                session.shared_key,
-                json.dumps(response_payload)
-            )
+            encrypted_response = encrypt(session.shared_key, json.dumps(response_payload))
             
-            return JSONResponse(
-                content={
+            await self._send_json_response(
+                send,
+                {
                     'ciphertext': encrypted_response[0],
                     'iv': encrypted_response[1],
                 },
-                status_code=200
+                200
             )
             
         except Exception as e:
-            return JSONResponse(
-                content={"error": f"Decryption error: {str(e)}"},
-                status_code=400
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"ERROR in middleware: {str(e)}")
+            print(error_details)
+            await self._send_json_response(
+                send,
+                {"error": f"Decryption error: {str(e)}"},
+                400
             )
             
-    async def _handle_handshake(self, request: Request) -> Response:
+    async def _handle_handshake_asgi(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Handle ECDH key exchange handshake"""
         try:
-            body = await request.json()
-            client_public_key_b64 = body.get('client_public_key')
+            # Read request body
+            body = bytearray()
+            while True:
+                message = await receive()
+                if message['type'] == 'http.request':
+                    body.extend(message.get('body', b''))
+                    if not message.get('more_body', False):
+                        break
+            
+            data = json.loads(body.decode('utf-8'))
+            client_public_key_b64 = data.get('client_public_key')
             
             if not client_public_key_b64:
-                return JSONResponse(
-                    content={"error": "Missing client_public_key"},
-                    status_code=400
+                await self._send_json_response(
+                    send,
+                    {"error": "Missing client_public_key"},
+                    400
                 )
+                return
                 
             # Import client's public key
             client_public_key = import_public_key(client_public_key_b64)
@@ -192,21 +264,39 @@ class RossettaMiddleware(BaseHTTPMiddleware):
             shared_key = derive_shared_key(self.server_private_key, client_public_key)
             
             # Create session (use client IP as session ID for simplicity)
-            session_id = request.client.host if request.client else "default"
+            session_id = scope.get('client', [None])[0] if scope.get('client') else "default"
             self.session_manager.create_session(session_id, shared_key)
             
             # Return server's public key
             server_public_key_b64 = export_public_key(self.server_public_key)
             
-            return JSONResponse(
-                content={
-                    'server_public_key': server_public_key_b64,
-                },
-                status_code=200
+            await self._send_json_response(
+                send,
+                {'server_public_key': server_public_key_b64},
+                200
             )
             
         except Exception as e:
-            return JSONResponse(
-                content={"error": f"Handshake error: {str(e)}"},
-                status_code=400
+            await self._send_json_response(
+                send,
+                {"error": f"Handshake error: {str(e)}"},
+                400
             )
+    
+    async def _send_json_response(self, send: Send, content: dict, status: int = 200) -> None:
+        """Send JSON response"""
+        body = json.dumps(content).encode('utf-8')
+        
+        await send({
+            'type': 'http.response.start',
+            'status': status,
+            'headers': [
+                (b'content-type', b'application/json'),
+                (b'content-length', str(len(body)).encode()),
+            ],
+        })
+        
+        await send({
+            'type': 'http.response.body',
+            'body': body,
+        })

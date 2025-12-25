@@ -49,12 +49,34 @@ export async function deriveSharedSecret(
   privateKey: CryptoKey,
   publicKey: CryptoKey
 ): Promise<CryptoKey> {
-  return await crypto.subtle.deriveKey(
+  // First derive the raw bits
+  const sharedSecret = await crypto.subtle.deriveBits(
     {
       name: 'ECDH',
       public: publicKey,
     },
     privateKey,
+    256
+  );
+
+  // Then use HKDF to derive the AES key (matching Python's approach)
+  const hkdfKey = await crypto.subtle.importKey(
+    'raw',
+    sharedSecret,
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
+
+  // Derive AES-GCM key using HKDF with same parameters as Python
+  return await crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array([]),
+      info: new TextEncoder().encode('rossetta-api'),
+    },
+    hkdfKey,
     {
       name: 'AES-GCM',
       length: 256,
