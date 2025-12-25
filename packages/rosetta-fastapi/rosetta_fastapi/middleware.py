@@ -168,11 +168,16 @@ class RosettaMiddleware(BaseHTTPMiddleware):
             )
     
     async def _decrypt_request(self, encrypted_payload: str, iv: str) -> dict:
-        """Decrypt the request payload"""
-        # Get the first available shared key (in production, use session tracking)
+        """Decrypt the request payload
+        
+        Note: This implementation uses the first available shared key.
+        For production with multiple concurrent clients, implement proper
+        session tracking using client identifiers or session tokens.
+        """
         if not self.client_sessions:
             raise ValueError("No active sessions. Perform key exchange first.")
         
+        # TODO: Use proper session tracking for multi-client scenarios
         shared_key = list(self.client_sessions.values())[0]
         
         # Decode base64
@@ -189,8 +194,13 @@ class RosettaMiddleware(BaseHTTPMiddleware):
         status: int,
         headers: dict
     ) -> dict:
-        """Encrypt the response payload"""
-        # Get the first available shared key
+        """Encrypt the response payload
+        
+        Note: This implementation uses the first available shared key.
+        For production with multiple concurrent clients, implement proper
+        session tracking using client identifiers or session tokens.
+        """
+        # TODO: Use proper session tracking for multi-client scenarios
         shared_key = list(self.client_sessions.values())[0]
         
         # Prepare response payload

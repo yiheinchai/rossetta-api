@@ -112,9 +112,6 @@ def test_encrypted_request_response(client):
 
 def test_replay_attack_prevention(client):
     """Test that replayed requests are rejected"""
-    import time
-    import os
-    
     # Step 1: Key exchange
     client_crypto = CryptoManager()
     client_public_key = client_crypto.get_public_key_base64()
@@ -170,9 +167,6 @@ def test_replay_attack_prevention(client):
 
 def test_timestamp_validation(client):
     """Test that requests with old timestamps are rejected"""
-    import time
-    import os
-    
     # Step 1: Key exchange
     client_crypto = CryptoManager()
     client_public_key = client_crypto.get_public_key_base64()
