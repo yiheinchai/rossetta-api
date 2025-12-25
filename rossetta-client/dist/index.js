@@ -71,11 +71,30 @@ class RossettaFetch {
         const aesKey = await (0, crypto_1.generateAESKey)();
         const aesKeyRaw = await (0, crypto_1.exportAESKey)(aesKey);
         // Prepare request data
+        let bodyData = null;
+        // Handle different body types
+        if (options.body) {
+            if (typeof options.body === 'string') {
+                try {
+                    // Try to parse as JSON
+                    bodyData = JSON.parse(options.body);
+                }
+                catch {
+                    // If not JSON, keep as string
+                    bodyData = options.body;
+                }
+            }
+            else {
+                // For other types (FormData, Blob, etc.), convert to string
+                // Note: This is a simplification. In production, you might want to handle these differently
+                bodyData = String(options.body);
+            }
+        }
         const requestData = {
             method: options.method || 'GET',
             url,
             headers: options.headers || {},
-            body: options.body ? JSON.parse(options.body) : null,
+            body: bodyData,
         };
         // Serialize to JSON
         const encoder = new TextEncoder();

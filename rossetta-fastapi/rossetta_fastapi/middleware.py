@@ -1,9 +1,12 @@
 """FastAPI middleware for Rossetta API encryption."""
 
+import base64
 import json
 import time
 from typing import Callable
 
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -108,10 +111,6 @@ class RossettaMiddleware(BaseHTTPMiddleware):
                 decrypted_data = decrypt_data(encrypted_payload, self.key_manager.private_key)
                 
                 # Extract AES key for response encryption
-                import base64
-                from cryptography.hazmat.primitives.asymmetric import padding
-                from cryptography.hazmat.primitives import hashes
-                
                 encrypted_key = base64.b64decode(encrypted_payload["encrypted_key"])
                 aes_key = self.key_manager.private_key.decrypt(
                     encrypted_key,
@@ -187,8 +186,13 @@ class RossettaMiddleware(BaseHTTPMiddleware):
                 # Parse response data
                 try:
                     response_data = json.loads(response_body.decode('utf-8'))
-                except:
-                    response_data = {"data": response_body.decode('utf-8')}
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    # If response is not JSON or not valid UTF-8, wrap it
+                    try:
+                        response_data = {"data": response_body.decode('utf-8')}
+                    except UnicodeDecodeError:
+                        # If it's not even valid UTF-8, encode as base64
+                        response_data = {"data": base64.b64encode(response_body).decode('utf-8'), "encoding": "base64"}
                 
                 # Encrypt response
                 encrypted_response = encrypt_response(response_data, aes_key)
