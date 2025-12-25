@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rossetta Client Demo</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        border-bottom: 2px solid #4caf50;
+        padding-bottom: 10px;
+      }
+      .section {
+        margin: 20px 0;
+        padding: 15px;
+        background: #f9f9f9;
+        border-radius: 4px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+        font-size: 14px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .output {
+        margin-top: 10px;
+        padding: 10px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-height: 50px;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      .error {
+        color: #d32f2f;
+      }
+      .success {
+        color: #388e3c;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 8px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      textarea {
+        min-height: 80px;
+        font-family: "Courier New", monospace;
+      }
+      label {
+        display: block;
+        margin-top: 10px;
+        font-weight: bold;
+        color: #555;
+      }
+      .info {
+        background: #e3f2fd;
+        padding: 15px;
+        border-left: 4px solid #2196f3;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔒 Rossetta Client Demo</h1>
+
+      <div class="info">
+        <strong>Note:</strong> Open the Network tab in Chrome DevTools to see
+        encrypted requests. Try copying and replaying a request - it will fail
+        due to replay protection!
+      </div>
+
+      <div class="section">
+        <h3>1. Simple GET Request</h3>
+        <button onclick="testGetHello()">GET /api/hello</button>
+        <div id="getOutput" class="output">Click button to test...</div>
+      </div>
+
+      <div class="section">
+        <h3>2. GET with Data</h3>
+        <button onclick="testGetData()">GET /api/data</button>
+        <div id="getDataOutput" class="output">Click button to test...</div>
+      </div>
+
+      <div class="section">
+        <h3>3. POST Echo</h3>
+        <label>Message:</label>
+        <input type="text" id="echoMessage" value="Hello, Encrypted World!" />
+        <button onclick="testPostEcho()">POST /api/echo</button>
+        <div id="postEchoOutput" class="output">Click button to test...</div>
+      </div>
+
+      <div class="section">
+        <h3>4. POST Submit Data</h3>
+        <label>JSON Data:</label>
+        <textarea id="submitData">
+{"id": 42, "name": "Test Item", "value": "Secret Value"}</textarea
+        >
+        <button onclick="testPostSubmit()">POST /api/submit</button>
+        <div id="postSubmitOutput" class="output">Click button to test...</div>
+      </div>
+
+      <div class="section">
+        <h3>5. GET with Path Parameter</h3>
+        <label>User ID:</label>
+        <input type="number" id="userId" value="123" />
+        <button onclick="testGetUser()">GET /api/user/:id</button>
+        <div id="getUserOutput" class="output">Click button to test...</div>
+      </div>
+
+      <div class="section">
+        <h3>6. Test Replay Attack Prevention</h3>
+        <button onclick="testReplayAttack()">Capture & Replay Request</button>
+        <div id="replayOutput" class="output">
+          This will demonstrate replay attack prevention...
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      // Import rossetta-client from npm via CDN
+      import fetch from "https://cdn.jsdelivr.net/npm/rossetta-client@0.1.3/dist/index.mjs";
+
+      window.rossettaFetch = fetch;
+      window.API_BASE = "http://localhost:8000";
+
+      console.log("Rossetta client loaded from npm package");
+    </script>
+
+    <script>
+      async function testGetHello() {
+        const output = document.getElementById("getOutput");
+        output.textContent = "Loading...";
+        try {
+          const response = await window.rossettaFetch(
+            `${window.API_BASE}/api/hello`
+          );
+          const data = await response.json();
+          output.className = "output success";
+          output.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function testGetData() {
+        const output = document.getElementById("getDataOutput");
+        output.textContent = "Loading...";
+        try {
+          const response = await window.rossettaFetch(
+            `${window.API_BASE}/api/data`
+          );
+          const data = await response.json();
+          output.className = "output success";
+          output.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function testPostEcho() {
+        const output = document.getElementById("postEchoOutput");
+        const message = document.getElementById("echoMessage").value;
+        output.textContent = "Loading...";
+        try {
+          const response = await window.rossettaFetch(
+            `${window.API_BASE}/api/echo`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ message }),
+            }
+          );
+          const data = await response.json();
+          output.className = "output success";
+          output.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function testPostSubmit() {
+        const output = document.getElementById("postSubmitOutput");
+        const dataStr = document.getElementById("submitData").value;
+        output.textContent = "Loading...";
+        try {
+          const data = JSON.parse(dataStr);
+          const response = await window.rossettaFetch(
+            `${window.API_BASE}/api/submit`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(data),
+            }
+          );
+          const result = await response.json();
+          output.className = "output success";
+          output.textContent = JSON.stringify(result, null, 2);
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function testGetUser() {
+        const output = document.getElementById("getUserOutput");
+        const userId = document.getElementById("userId").value;
+        output.textContent = "Loading...";
+        try {
+          const response = await window.rossettaFetch(
+            `${window.API_BASE}/api/user/${userId}`
+          );
+          const data = await response.json();
+          output.className = "output success";
+          output.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      let capturedRequest = null;
+
+      async function testReplayAttack() {
+        const output = document.getElementById("replayOutput");
+        output.textContent = "Testing replay attack prevention...\n\n";
+
+        try {
+          // Intercept fetch to capture request
+          const originalFetch = window.fetch;
+          let requestDetails = null;
+
+          window.fetch = async function (url, options) {
+            if (
+              options &&
+              options.headers &&
+              options.headers["X-Rossetta-Encrypted"] === "true"
+            ) {
+              requestDetails = {
+                url: url,
+                options: JSON.parse(JSON.stringify(options)),
+              };
+            }
+            return originalFetch(url, options);
+          };
+
+          // Make a request
+          output.textContent += "1. Making initial encrypted request...\n";
+          const response = await window.rossettaFetch(
+            `${window.API_BASE}/api/hello`
+          );
+          await response.json();
+          output.textContent += "   ✓ Initial request succeeded\n\n";
+
+          // Restore fetch
+          window.fetch = originalFetch;
+
+          if (!requestDetails) {
+            throw new Error("Failed to capture request");
+          }
+
+          // Try to replay the exact same request
+          output.textContent += "2. Replaying captured request...\n";
+          const replayResponse = await originalFetch(
+            requestDetails.url,
+            requestDetails.options
+          );
+          const replayData = await replayResponse.json();
+
+          if (replayData.error && replayData.error.includes("nonce")) {
+            output.className = "output success";
+            output.textContent += "   ✓ Replay attack prevented!\n";
+            output.textContent += `   Error: ${replayData.error}\n\n`;
+            output.textContent +=
+              "✅ SUCCESS: Replay attack was blocked by nonce validation!\n";
+          } else {
+            output.className = "output error";
+            output.textContent +=
+              "   ✗ Replay attack succeeded (this should not happen!)\n";
+            output.textContent += JSON.stringify(replayData, null, 2);
+          }
+        } catch (error) {
+          output.className = "output error";
+          output.textContent += `\nError: ${error.message}`;
+        }
+      }
+    </script>
+  </body>
+</html>
