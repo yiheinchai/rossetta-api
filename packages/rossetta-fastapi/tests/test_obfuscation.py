@@ -116,6 +116,23 @@ def test_session_state():
     assert state3 is not state1
 
 
+def test_session_uniqueness():
+    """Test that multiple sessions have different IDs"""
+    session_ids = set()
+    action_tokens = set()
+    
+    for _ in range(10):
+        reset_session_state()
+        state = get_session_state()
+        session_ids.add(state.sid)
+        action_tokens.add(state.at)
+    
+    # All session IDs should be unique
+    assert len(session_ids) == 10
+    # All action tokens should be unique
+    assert len(action_tokens) == 10
+
+
 def test_increment_req_id():
     """Test request ID increment"""
     reset_session_state()

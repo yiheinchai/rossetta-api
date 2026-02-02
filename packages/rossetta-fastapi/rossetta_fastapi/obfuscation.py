@@ -4,7 +4,7 @@ Transforms encrypted payloads into Google API-like format for enhanced obfuscati
 """
 
 import json
-import random
+import secrets
 import time
 import urllib.parse
 from typing import Optional, Tuple, Dict, Any
@@ -15,26 +15,26 @@ class SessionState:
     
     def __init__(self):
         self.sid = self._generate_session_id()
-        self.req_id = random.randint(0, 100000)
+        self.req_id = secrets.randbelow(100000)
         self.at = self._generate_action_token()
     
     @staticmethod
     def _generate_session_id() -> str:
         """Generate a random session ID (f.sid format) - 19-digit numeric string"""
-        return ''.join(str(random.randint(0, 9)) for _ in range(19))
+        return ''.join(str(secrets.randbelow(10)) for _ in range(19))
     
     @staticmethod
     def _generate_action_token() -> str:
         """Generate an action token (CSRF-like token)"""
         chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
         result = 'AMsTio'
-        result += ''.join(random.choice(chars) for _ in range(20))
+        result += ''.join(secrets.choice(chars) for _ in range(20))
         result += ':' + str(int(time.time() * 1000))
         return result
     
     def increment_req_id(self) -> int:
         """Increment request ID"""
-        self.req_id += random.randint(100, 1100)
+        self.req_id += secrets.randbelow(1001) + 100
         return self.req_id
 
 
@@ -132,7 +132,7 @@ def encode_response_to_google_format(ciphertext: str, iv: str) -> str:
     response_payload = [
         None,
         [
-            [timestamp, random.randint(0, 1000000000), random.randint(0, 10000000000)],
+            [timestamp, secrets.randbelow(1000000001), secrets.randbelow(10000000001)],
             None,
             None,
             None,
@@ -170,7 +170,7 @@ def encode_to_google_format(ciphertext: str, iv: str) -> Dict[str, str]:
     inner_payload = [
         None,
         [
-            [timestamp, random.randint(0, 1000000000), random.randint(0, 10000000000)],
+            [timestamp, secrets.randbelow(1000000001), secrets.randbelow(10000000001)],
             None,
             None,
             None,
@@ -203,10 +203,8 @@ def parse_form_urlencoded(body: str) -> Dict[str, str]:
     for pair in body.split('&'):
         if '=' in pair:
             key, value = pair.split('=', 1)
-            # Replace + with space before URL decoding (standard form encoding)
-            key = key.replace('+', ' ')
-            value = value.replace('+', ' ')
-            result[urllib.parse.unquote(key)] = urllib.parse.unquote(value)
+            # Use unquote_plus to handle + as space (standard form encoding)
+            result[urllib.parse.unquote_plus(key)] = urllib.parse.unquote_plus(value)
     return result
 
 
