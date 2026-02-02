@@ -7,7 +7,7 @@ import {
   exportPublicKey,
   importPublicKey,
   deriveSharedSecret,
-} from './crypto';
+} from "./crypto";
 
 interface Session {
   sharedKey: CryptoKey;
@@ -17,21 +17,39 @@ interface Session {
 class SessionManager {
   private sessions: Map<string, Session> = new Map();
   private keyPairs: Map<string, CryptoKeyPair> = new Map();
+  private pendingHandshakes: Map<string, Promise<CryptoKey>> = new Map();
   private readonly SESSION_DURATION = 3600000; // 1 hour in milliseconds
 
   /**
    * Get or create session for a base URL
+   * Handles concurrent requests by sharing a single handshake promise
    */
   async getSession(baseUrl: string): Promise<CryptoKey> {
     const existing = this.sessions.get(baseUrl);
-    
+
     // Return existing session if still valid
     if (existing && existing.expiresAt > Date.now()) {
       return existing.sharedKey;
     }
 
-    // Create new session
-    return await this.createSession(baseUrl);
+    // Check if there's already a handshake in progress for this URL
+    const pendingHandshake = this.pendingHandshakes.get(baseUrl);
+    if (pendingHandshake) {
+      // Wait for and reuse the existing handshake
+      return pendingHandshake;
+    }
+
+    // Create new session and cache the promise
+    const handshakePromise = this.createSession(baseUrl);
+    this.pendingHandshakes.set(baseUrl, handshakePromise);
+
+    try {
+      const sharedKey = await handshakePromise;
+      return sharedKey;
+    } finally {
+      // Clean up pending handshake after completion (success or failure)
+      this.pendingHandshakes.delete(baseUrl);
+    }
   }
 
   /**
@@ -48,9 +66,9 @@ class SessionManager {
     // Perform key exchange with server
     const handshakeUrl = `${baseUrl}/__rossetta_handshake__`;
     const response = await fetch(handshakeUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         client_public_key: clientPublicKey,
@@ -58,14 +76,19 @@ class SessionManager {
     });
 
     if (!response.ok) {
-      throw new Error(`Key exchange failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Key exchange failed: ${response.status} ${response.statusText}`,
+      );
     }
 
     const data = await response.json();
     const serverPublicKey = await importPublicKey(data.server_public_key);
 
     // Derive shared secret
-    const sharedKey = await deriveSharedSecret(keyPair.privateKey, serverPublicKey);
+    const sharedKey = await deriveSharedSecret(
+      keyPair.privateKey,
+      serverPublicKey,
+    );
 
     // Store session
     this.sessions.set(baseUrl, {
@@ -82,6 +105,7 @@ class SessionManager {
   clearSession(baseUrl: string): void {
     this.sessions.delete(baseUrl);
     this.keyPairs.delete(baseUrl);
+    this.pendingHandshakes.delete(baseUrl);
   }
 
   /**
@@ -90,6 +114,7 @@ class SessionManager {
   clearAllSessions(): void {
     this.sessions.clear();
     this.keyPairs.clear();
+    this.pendingHandshakes.clear();
   }
 }
 
