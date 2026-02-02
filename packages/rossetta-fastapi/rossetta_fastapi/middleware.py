@@ -21,6 +21,12 @@ from .crypto import (
     decrypt,
 )
 from .session import SessionManager
+from .obfuscation import (
+    decode_from_form_data,
+    encode_response_to_google_format,
+    parse_form_urlencoded,
+    get_obfuscation_headers,
+)
 
 
 class RossettaMiddleware:
@@ -96,9 +102,28 @@ class RossettaMiddleware:
                     if not message.get("more_body", False):
                         break
 
-            encrypted_data = json.loads(body.decode("utf-8"))
-            ciphertext = encrypted_data["ciphertext"]
-            iv = encrypted_data["iv"]
+            body_str = body.decode("utf-8")
+            
+            # Check content type to determine format
+            content_type = headers.get("Content-Type", "")
+            
+            if "application/x-www-form-urlencoded" in content_type:
+                # Google-style obfuscated format
+                form_data = parse_form_urlencoded(body_str)
+                decoded = decode_from_form_data(form_data)
+                
+                if decoded is None:
+                    await self._send_json_response(
+                        send, {"error": "Invalid obfuscated request format"}, 400
+                    )
+                    return
+                
+                ciphertext, iv = decoded
+            else:
+                # Legacy JSON format for backward compatibility
+                encrypted_data = json.loads(body_str)
+                ciphertext = encrypted_data["ciphertext"]
+                iv = encrypted_data["iv"]
 
             # Get session - use client IP as session ID
             # In production, consider using a more robust session token system
@@ -237,14 +262,24 @@ class RossettaMiddleware:
                 session.shared_key, json.dumps(response_payload)
             )
 
-            await self._send_json_response(
-                send,
-                {
-                    "ciphertext": encrypted_response[0],
-                    "iv": encrypted_response[1],
-                },
-                200,
-            )
+            # Check if request used Google-style format
+            if "application/x-www-form-urlencoded" in content_type:
+                # Encode response in Google-style format
+                google_response = encode_response_to_google_format(
+                    encrypted_response[0],
+                    encrypted_response[1]
+                )
+                await self._send_google_response(send, google_response, 200)
+            else:
+                # Legacy JSON format
+                await self._send_json_response(
+                    send,
+                    {
+                        "ciphertext": encrypted_response[0],
+                        "iv": encrypted_response[1],
+                    },
+                    200,
+                )
 
         except Exception as e:
             # Use proper logging instead of print in production
@@ -326,6 +361,39 @@ class RossettaMiddleware:
                     (b"content-type", b"application/json"),
                     (b"content-length", str(len(body)).encode()),
                 ],
+            }
+        )
+
+        await send(
+            {
+                "type": "http.response.body",
+                "body": body,
+            }
+        )
+
+    async def _send_google_response(
+        self, send: Send, content: str, status: int = 200
+    ) -> None:
+        """Send Google-style obfuscated response"""
+        body = content.encode("utf-8")
+        
+        # Get Google-style headers
+        obfuscation_headers = get_obfuscation_headers()
+        
+        headers = [
+            (b"content-type", b"application/json; charset=utf-8"),
+            (b"content-length", str(len(body)).encode()),
+        ]
+        
+        # Add obfuscation headers
+        for key, value in obfuscation_headers.items():
+            headers.append((key.encode(), value.encode()))
+
+        await send(
+            {
+                "type": "http.response.start",
+                "status": status,
+                "headers": headers,
             }
         )
 
