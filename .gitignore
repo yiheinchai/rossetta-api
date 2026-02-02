@@ -60,3 +60,7 @@ temp/
 # packages/*/dist/
 # packages/*/*.egg-info/
 # packages/*/build/
+
+# Demo test files (generated during testing)
+examples/client-demo/rossetta-client.mjs
+examples/client-demo/test_obfuscation.html

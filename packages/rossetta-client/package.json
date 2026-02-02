@@ -1,6 +1,6 @@
 {
   "name": "rossetta-client",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "End-to-end encryption client for API requests - drop-in fetch replacement",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

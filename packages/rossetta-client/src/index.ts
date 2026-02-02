@@ -5,6 +5,11 @@
 
 import { encrypt, decrypt, generateNonce } from './crypto';
 import { sessionManager } from './session';
+import {
+  encodeToGoogleFormat,
+  decodeResponseFromGoogleFormat,
+  toFormUrlEncoded,
+} from './obfuscation';
 
 /**
  * Extract base URL from a full URL
@@ -86,29 +91,37 @@ async function rossettaFetch(
 
     const { ciphertext, iv } = await encrypt(sharedKey, JSON.stringify(payload));
 
-    // Make encrypted request
+    // Encode in Google-style BatchExecute format for obfuscation
+    const { formData, headers: obfuscationHeaders } = encodeToGoogleFormat(ciphertext, iv);
+    const formBody = toFormUrlEncoded(formData);
+
+    // Make encrypted request with Google-style obfuscation
     const encryptedResponse = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'X-Rossetta-Encrypted': 'true',
+        ...obfuscationHeaders,
       },
-      body: JSON.stringify({
-        ciphertext,
-        iv,
-      }),
+      body: formBody,
     });
 
     if (!encryptedResponse.ok) {
       throw new Error(`Request failed: ${encryptedResponse.status} ${encryptedResponse.statusText}`);
     }
 
-    // Decrypt response
-    const encryptedData = await encryptedResponse.json();
+    // Get response text and decode from Google-style format
+    const responseText = await encryptedResponse.text();
+    const decryptedData = decodeResponseFromGoogleFormat(responseText);
+    
+    if (!decryptedData) {
+      throw new Error('Failed to decode response from Google format');
+    }
+
     const decryptedResponse = await decrypt(
       sharedKey,
-      encryptedData.ciphertext,
-      encryptedData.iv
+      decryptedData.ciphertext,
+      decryptedData.iv
     );
 
     const responseData = JSON.parse(decryptedResponse);
