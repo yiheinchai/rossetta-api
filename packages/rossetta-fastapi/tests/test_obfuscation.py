@@ -8,6 +8,7 @@ from rossetta_fastapi.obfuscation import (
     encode_to_google_format,
     decode_from_google_format,
     encode_response_to_google_format,
+    decode_response_from_google_format,
     decode_from_form_data,
     parse_form_urlencoded,
     get_session_state,
@@ -67,17 +68,71 @@ def test_encode_response_to_google_format():
     
     response = encode_response_to_google_format(ciphertext, iv)
     
-    # Response should have length prefix
+    # Response should have multiple segments with length prefixes
     assert '\n' in response
     
-    parts = response.split('\n', 1)
-    assert parts[0].isdigit()  # Length prefix
+    # The response format is: <len>\n<segment><len>\n<segment>...
+    # Let's verify the first segment has a length prefix
+    first_newline = response.find('\n')
+    assert first_newline > 0
+    first_length_str = response[:first_newline]
+    assert first_length_str.isdigit()
     
-    # Parse the JSON part
-    json_data = json.loads(parts[1])
+    first_segment_len = int(first_length_str)
+    first_segment_end = first_newline + 1 + first_segment_len
+    first_segment = response[first_newline + 1:first_segment_end]
+    
+    # The first segment should be valid JSON containing wrb.fr
+    json_data = json.loads(first_segment)
     assert isinstance(json_data, list)
     assert len(json_data) > 0
     assert json_data[0][0] == 'wrb.fr'
+    
+    # Verify we have additional segments (di, af.httprm, e)
+    remaining = response[first_segment_end:]
+    assert 'di' in remaining
+    assert 'af.httprm' in remaining
+
+
+def test_encode_decode_response_roundtrip():
+    """Test that encoding and decoding responses are inverses"""
+    ciphertext = "test_ciphertext_base64_encoded_data_here"
+    iv = "test_iv_base64_data"
+    
+    # Encode the response
+    encoded_response = encode_response_to_google_format(ciphertext, iv)
+    
+    # Verify the response has the expected structure
+    assert '\n' in encoded_response
+    assert 'wrb.fr' in encoded_response
+    assert 'di' in encoded_response
+    assert 'af.httprm' in encoded_response
+    
+    # Decode should recover the original data
+    decoded = decode_response_from_google_format(encoded_response)
+    
+    assert decoded is not None
+    assert decoded[0] == ciphertext
+    assert decoded[1] == iv
+
+
+def test_response_obfuscation_with_special_chars():
+    """Test response obfuscation with characters that get unicode escaped"""
+    # Base64 can contain = signs which get unicode escaped
+    ciphertext = "ABC123xyz+/==="  # Typical base64 ending
+    iv = "IV12345=="
+    
+    encoded_response = encode_response_to_google_format(ciphertext, iv)
+    
+    # The response should contain unicode escapes for '='
+    assert '\\u003d' in encoded_response
+    
+    # But decoding should still work
+    decoded = decode_response_from_google_format(encoded_response)
+    
+    assert decoded is not None
+    assert decoded[0] == ciphertext
+    assert decoded[1] == iv
 
 
 def test_parse_form_urlencoded():
